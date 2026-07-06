@@ -262,7 +262,9 @@ function Home() {
         />
       )}
 
-      {tab === 'settings' && <SettingsTab settings={settings} onSave={saveSettingsAll} />}
+      {tab === 'settings' && (
+        <SettingsTab settings={settings} onSave={saveSettingsAll} onFlash={flash} />
+      )}
 
       <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md border-t border-gray-200 bg-white">
         {(
@@ -449,11 +451,17 @@ function AllTab(props: {
   )
 }
 
-function SettingsTab(props: { settings: Settings; onSave: (s: Settings) => void }) {
-  const { settings, onSave } = props
+function SettingsTab(props: {
+  settings: Settings
+  onSave: (s: Settings) => void
+  onFlash: (text: string) => void
+}) {
+  const { settings, onSave, onFlash } = props
   const [url, setUrl] = useState(settings.moodleUrl)
   const [token, setToken] = useState(settings.moodleToken)
   const [minutes, setMinutes] = useState(settings.minutesPerDay)
+  const [notifyTime, setNotifyTime] = useState(settings.notifyTime)
+  const [enabling, setEnabling] = useState(false)
 
   const save = () =>
     onSave({
@@ -461,7 +469,21 @@ function SettingsTab(props: { settings: Settings; onSave: (s: Settings) => void 
       moodleUrl: url.trim(),
       moodleToken: token.trim(),
       minutesPerDay: minutes,
+      notifyTime,
     })
+
+  const handleEnablePush = async () => {
+    setEnabling(true)
+    try {
+      const { enablePush } = await import('./push')
+      await enablePush()
+      onFlash('✅ この端末で通知を受け取ります')
+    } catch (e) {
+      onFlash(e instanceof Error ? e.message : '通知の設定に失敗しました')
+    } finally {
+      setEnabling(false)
+    }
+  }
 
   return (
     <main className="px-4 py-4">
@@ -506,9 +528,36 @@ function SettingsTab(props: { settings: Settings; onSave: (s: Settings) => void 
           />
         </label>
 
+        <label className="block">
+          <span className="text-sm font-medium text-gray-700">通知時刻</span>
+          <input
+            type="time"
+            value={notifyTime}
+            onChange={(e) => setNotifyTime(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+          <span className="mt-1 block text-xs text-gray-400">
+            毎日この時刻に、未提出課題のまとめをプッシュ通知します
+          </span>
+        </label>
+
         <button onClick={save} className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white">
           保存
         </button>
+      </div>
+
+      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+        <button
+          onClick={handleEnablePush}
+          disabled={enabling}
+          className="w-full rounded-lg border border-indigo-600 py-2 text-sm font-bold text-indigo-600 disabled:opacity-50"
+        >
+          🔔 この端末で通知を受け取る
+        </button>
+        <p className="mt-2 text-xs text-gray-400">
+          iPhoneの場合は、先にSafariの共有ボタンから「ホーム画面に追加」し、
+          ホーム画面のサキヨミを開いてからこのボタンを押してください
+        </p>
       </div>
 
       <button

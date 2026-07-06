@@ -20,6 +20,8 @@ export interface Settings {
   moodleToken: string
   /** 1日に課題へ使える時間(分) */
   minutesPerDay: number
+  /** プッシュ通知を送る時刻 (HH:MM) */
+  notifyTime: string
   lastSyncedAt?: string
 }
 
@@ -27,4 +29,5 @@ export const DEFAULT_SETTINGS: Settings = {
   moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp',
   moodleToken: '',
   minutesPerDay: 120,
+  notifyTime: '18:00',
 }

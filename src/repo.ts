@@ -83,6 +83,7 @@ export async function fetchSettings(): Promise<Settings> {
     moodleUrl: data.moodle_url,
     moodleToken: data.moodle_token,
     minutesPerDay: data.minutes_per_day,
+    notifyTime: data.notify_time ?? '18:00',
     lastSyncedAt: data.last_synced_at ?? undefined,
   }
 }
@@ -96,6 +97,7 @@ export async function saveSettingsCloud(s: Settings): Promise<void> {
     moodle_url: s.moodleUrl,
     moodle_token: s.moodleToken,
     minutes_per_day: s.minutesPerDay,
+    notify_time: s.notifyTime,
     last_synced_at: s.lastSyncedAt ?? null,
   })
   if (error) throw error
