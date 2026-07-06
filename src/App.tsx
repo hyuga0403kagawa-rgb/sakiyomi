@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
 import type { Settings, Task } from './types'
-import { loadSettings, loadTasks, saveSettings, saveTasks } from './storage'
+import { DEFAULT_SETTINGS } from './types'
+import { supabase } from './supabase'
+import * as repo from './repo'
+import { loadSettings as loadLocalSettings, loadTasks as loadLocalTasks } from './storage'
 import { syncMoodle } from './moodle'
 import { buildTodayPlan } from './planner'
+import AuthScreen from './AuthScreen'
 
 const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -26,30 +31,116 @@ function dueColor(iso?: string): string {
 }
 
 type Tab = 'today' | 'all' | 'settings'
+type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 
 export default function App() {
-  const [tasks, setTasks] = useState<Task[]>(() => loadTasks())
-  const [settings, setSettings] = useState<Settings>(() => loadSettings())
+  const [session, setSession] = useState<Session | null>(null)
+  const [authReady, setAuthReady] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setAuthReady(true)
+    })
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  if (!authReady) {
+    return <div className="flex min-h-screen items-center justify-center text-gray-400">読み込み中…</div>
+  }
+  if (!session) return <AuthScreen />
+  return <Home key={session.user.id} />
+}
+
+function Home() {
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('today')
   const [syncing, setSyncing] = useState(false)
   const [message, setMessage] = useState('')
 
-  useEffect(() => saveTasks(tasks), [tasks])
-  useEffect(() => saveSettings(settings), [settings])
+  const flash = (text: string) => {
+    setMessage(text)
+    setTimeout(() => setMessage(''), 4000)
+  }
+
+  // 初回読み込み。クラウドが空でこの端末にlocalStorage時代のデータが残っていれば、
+  // 一度だけクラウドへ引っ越す。
+  useEffect(() => {
+    ;(async () => {
+      try {
+        let [cloudTasks, cloudSettings] = await Promise.all([
+          repo.fetchTasks(),
+          repo.fetchSettings(),
+        ])
+        if (cloudTasks.length === 0) {
+          const localTasks = loadLocalTasks()
+          if (localTasks.length > 0) {
+            for (const t of localTasks) await repo.insertTask(t)
+            cloudTasks = await repo.fetchTasks()
+            flash(`この端末のデータ ${localTasks.length}件をクラウドへ移行しました`)
+          }
+          const localSettings = loadLocalSettings()
+          if (localSettings.moodleToken && !cloudSettings.moodleToken) {
+            cloudSettings = { ...cloudSettings, ...localSettings }
+            await repo.saveSettingsCloud(cloudSettings)
+          }
+        }
+        setTasks(cloudTasks)
+        setSettings(cloudSettings)
+      } catch (e) {
+        flash(e instanceof Error ? `読み込みに失敗しました: ${e.message}` : '読み込みに失敗しました')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
 
   const plan = useMemo(
     () => buildTodayPlan(tasks, settings.minutesPerDay),
     [tasks, settings.minutesPerDay],
   )
 
-  const toggleDone = (id: string) =>
-    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)))
+  const toggleDone = async (id: string) => {
+    const t = tasks.find((x) => x.id === id)
+    if (!t) return
+    const updated = { ...t, done: !t.done }
+    setTasks((ts) => ts.map((x) => (x.id === id ? updated : x)))
+    try {
+      await repo.updateTask(updated)
+    } catch {
+      flash('クラウドへの保存に失敗しました')
+    }
+  }
 
-  const removeTask = (id: string) => setTasks((ts) => ts.filter((t) => t.id !== id))
+  const addTask = async (draft: TaskDraft) => {
+    try {
+      const created = await repo.insertTask(draft)
+      setTasks((ts) => [...ts, created])
+    } catch {
+      flash('タスクの追加に失敗しました')
+    }
+  }
 
-  const flash = (text: string) => {
-    setMessage(text)
-    setTimeout(() => setMessage(''), 4000)
+  const removeTask = async (id: string) => {
+    setTasks((ts) => ts.filter((t) => t.id !== id))
+    try {
+      await repo.deleteTask(id)
+    } catch {
+      flash('削除に失敗しました')
+    }
+  }
+
+  const saveSettingsAll = async (s: Settings) => {
+    setSettings(s)
+    try {
+      await repo.saveSettingsCloud(s)
+      flash('設定を保存しました')
+    } catch {
+      flash('設定の保存に失敗しました')
+    }
   }
 
   const handleSync = async () => {
@@ -61,9 +152,13 @@ export default function App() {
     setSyncing(true)
     try {
       const merged = await syncMoodle(settings, tasks)
-      setTasks(merged)
-      setSettings((s) => ({ ...s, lastSyncedAt: new Date().toISOString() }))
-      const count = merged.filter((t) => t.source === 'moodle' && !t.done).length
+      await repo.upsertMoodleTasks(merged)
+      const fresh = await repo.fetchTasks()
+      setTasks(fresh)
+      const newSettings = { ...settings, lastSyncedAt: new Date().toISOString() }
+      setSettings(newSettings)
+      await repo.saveSettingsCloud(newSettings)
+      const count = fresh.filter((t) => t.source === 'moodle' && !t.done).length
       flash(`同期完了! 未提出の課題 ${count}件`)
     } catch (e) {
       flash(e instanceof Error ? e.message : '同期に失敗しました')
@@ -73,6 +168,10 @@ export default function App() {
   }
 
   const today = new Date()
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center text-gray-400">読み込み中…</div>
+  }
 
   return (
     <div className="mx-auto min-h-screen max-w-md bg-gray-50 pb-24">
@@ -157,7 +256,7 @@ export default function App() {
       {tab === 'all' && (
         <AllTab
           tasks={tasks}
-          setTasks={setTasks}
+          onAdd={addTask}
           syncing={syncing}
           onSync={handleSync}
           lastSyncedAt={settings.lastSyncedAt}
@@ -166,13 +265,7 @@ export default function App() {
         />
       )}
 
-      {tab === 'settings' && (
-        <SettingsTab
-          settings={settings}
-          setSettings={setSettings}
-          onSaved={() => flash('設定を保存しました')}
-        />
-      )}
+      {tab === 'settings' && <SettingsTab settings={settings} onSave={saveSettingsAll} />}
 
       <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md border-t border-gray-200 bg-white">
         {(
@@ -200,14 +293,14 @@ export default function App() {
 
 function AllTab(props: {
   tasks: Task[]
-  setTasks: React.Dispatch<React.SetStateAction<Task[]>>
+  onAdd: (draft: TaskDraft) => void
   syncing: boolean
   onSync: () => void
   lastSyncedAt?: string
   toggleDone: (id: string) => void
   removeTask: (id: string) => void
 }) {
-  const { tasks, setTasks, syncing, onSync, lastSyncedAt, toggleDone, removeTask } = props
+  const { tasks, onAdd, syncing, onSync, lastSyncedAt, toggleDone, removeTask } = props
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState('23:59')
@@ -217,18 +310,13 @@ function AllTab(props: {
   const addTask = () => {
     if (!title.trim()) return
     const due = dueDate ? new Date(`${dueDate}T${dueTime || '23:59'}`).toISOString() : undefined
-    setTasks((ts) => [
-      ...ts,
-      {
-        id: `manual-${Date.now()}`,
-        title: title.trim(),
-        due,
-        estimatedMinutes: estimate,
-        done: false,
-        source: 'manual',
-        createdAt: new Date().toISOString(),
-      },
-    ])
+    onAdd({
+      title: title.trim(),
+      due,
+      estimatedMinutes: estimate,
+      done: false,
+      source: 'manual',
+    })
     setTitle('')
     setDueDate('')
   }
@@ -364,25 +452,19 @@ function AllTab(props: {
   )
 }
 
-function SettingsTab(props: {
-  settings: Settings
-  setSettings: React.Dispatch<React.SetStateAction<Settings>>
-  onSaved: () => void
-}) {
-  const { settings, setSettings, onSaved } = props
+function SettingsTab(props: { settings: Settings; onSave: (s: Settings) => void }) {
+  const { settings, onSave } = props
   const [url, setUrl] = useState(settings.moodleUrl)
   const [token, setToken] = useState(settings.moodleToken)
   const [minutes, setMinutes] = useState(settings.minutesPerDay)
 
-  const save = () => {
-    setSettings((s) => ({
-      ...s,
+  const save = () =>
+    onSave({
+      ...settings,
       moodleUrl: url.trim(),
       moodleToken: token.trim(),
       minutesPerDay: minutes,
-    }))
-    onSaved()
-  }
+    })
 
   return (
     <main className="px-4 py-4">
@@ -408,7 +490,7 @@ function SettingsTab(props: {
             className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
           />
           <span className="mt-1 block text-xs text-gray-400">
-            トークンはこの端末のブラウザ内にだけ保存されます
+            トークンはあなた専用のクラウドDBに保存され、課題の自動同期に使われます
           </span>
         </label>
 
@@ -431,6 +513,13 @@ function SettingsTab(props: {
           保存
         </button>
       </div>
+
+      <button
+        onClick={() => supabase.auth.signOut()}
+        className="mt-6 w-full rounded-lg border border-gray-300 py-2 text-sm text-gray-500"
+      >
+        ログアウト
+      </button>
     </main>
   )
 }
