@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+
+body {
+  margin: 0;
+  background: #f3f4f6;
+  font-family: system-ui, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+}
