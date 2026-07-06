@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
 import * as repo from './repo'
 import { loadSettings as loadLocalSettings, loadTasks as loadLocalTasks } from './storage'
-import { syncMoodle } from './moodle'
+import { syncMoodleViaServer } from './moodle'
 import { buildTodayPlan } from './planner'
 import AuthScreen from './AuthScreen'
 
@@ -151,13 +151,10 @@ function Home() {
     }
     setSyncing(true)
     try {
-      const merged = await syncMoodle(settings, tasks)
-      await repo.upsertMoodleTasks(merged)
-      const fresh = await repo.fetchTasks()
+      await syncMoodleViaServer()
+      const [fresh, freshSettings] = await Promise.all([repo.fetchTasks(), repo.fetchSettings()])
       setTasks(fresh)
-      const newSettings = { ...settings, lastSyncedAt: new Date().toISOString() }
-      setSettings(newSettings)
-      await repo.saveSettingsCloud(newSettings)
+      setSettings(freshSettings)
       const count = fresh.filter((t) => t.source === 'moodle' && !t.done).length
       flash(`同期完了! 未提出の課題 ${count}件`)
     } catch (e) {
