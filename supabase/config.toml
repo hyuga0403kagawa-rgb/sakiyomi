@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.moodle-connect]
 verify_jwt = false
+
+[functions.moodle-materials]
+verify_jwt = false

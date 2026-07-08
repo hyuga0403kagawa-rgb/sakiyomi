@@ -116,6 +116,11 @@ export default function AuthScreen() {
       <p className="mt-4 text-center text-xs text-gray-400">
         ここで登録するのはこのアプリ専用のアカウントです(Moodleとは別)
       </p>
+      <p className="mt-2 text-center text-xs">
+        <a href="privacy.html" className="text-gray-400 underline">
+          プライバシーポリシー
+        </a>
+      </p>
     </div>
   )
 }

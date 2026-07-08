@@ -12,9 +12,10 @@ import { WEEKDAY_JA, fmtMinutes, fmtTime } from './format'
 import AuthScreen from './AuthScreen'
 import TaskRow from './TaskRow'
 import CalendarTab from './CalendarTab'
+import MaterialsTab from './MaterialsTab'
 import { UNIVERSITIES } from './universities'
 
-type Tab = 'today' | 'all' | 'calendar' | 'settings'
+type Tab = 'today' | 'all' | 'calendar' | 'materials' | 'settings'
 type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 
 export default function App() {
@@ -254,6 +255,8 @@ function Home() {
 
       {tab === 'calendar' && <CalendarTab tasks={tasks} onToggle={toggleDone} />}
 
+      {tab === 'materials' && <MaterialsTab />}
+
       {tab === 'settings' && (
         <SettingsTab
           settings={settings}
@@ -268,7 +271,8 @@ function Home() {
           [
             ['today', '🏠', '今日'],
             ['all', '📋', 'すべて'],
-            ['calendar', '📅', 'カレンダー'],
+            ['calendar', '📅', '予定'],
+            ['materials', '📚', '資料'],
             ['settings', '⚙️', '設定'],
           ] as const
         ).map(([key, icon, label]) => (
@@ -731,6 +735,12 @@ function SettingsTab(props: {
       >
         ログアウト
       </button>
+
+      <p className="mt-4 text-center text-xs">
+        <a href="privacy.html" target="_blank" rel="noopener" className="text-gray-400 underline">
+          プライバシーポリシー
+        </a>
+      </p>
     </main>
   )
 }
