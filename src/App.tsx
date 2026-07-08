@@ -21,13 +21,18 @@ type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(false)
+  const [recovery, setRecovery] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setAuthReady(true)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s)
+      // パスワード再設定メールのリンクから戻ってきた場合
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true)
+    })
     return () => sub.subscription.unsubscribe()
   }, [])
 
@@ -35,7 +40,68 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center text-gray-400">読み込み中…</div>
   }
   if (!session) return <AuthScreen />
+  if (recovery) return <NewPasswordScreen onDone={() => setRecovery(false)} />
   return <Home key={session.user.id} />
+}
+
+function NewPasswordScreen(props: { onDone: () => void }) {
+  const { onDone } = props
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const save = async () => {
+    if (password.length < 6) {
+      setError('パスワードは6文字以上にしてください')
+      return
+    }
+    if (password !== confirm) {
+      setError('2つのパスワードが一致しません')
+      return
+    }
+    setBusy(true)
+    setError('')
+    const { error: err } = await supabase.auth.updateUser({ password })
+    if (err) {
+      setError(`変更に失敗しました: ${err.message}`)
+      setBusy(false)
+      return
+    }
+    onDone()
+  }
+
+  return (
+    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center bg-gray-50 px-6">
+      <h1 className="text-center text-xl font-bold text-indigo-600">新しいパスワードを設定</h1>
+      <div className="mt-6 space-y-3 rounded-xl bg-white p-4 shadow-sm">
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="新しいパスワード(6文字以上)"
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          autoComplete="new-password"
+        />
+        <input
+          type="password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          placeholder="もう一度入力"
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          autoComplete="new-password"
+        />
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <button
+          onClick={save}
+          disabled={busy}
+          className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white disabled:opacity-50"
+        >
+          {busy ? '変更中…' : 'パスワードを変更する'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function Home() {
@@ -195,6 +261,14 @@ function Home() {
           {message}
         </div>
       )}
+
+      {settings.moodleToken &&
+        settings.lastSyncedAt &&
+        Date.now() - new Date(settings.lastSyncedAt).getTime() > 24 * 3600_000 && (
+          <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            ⚠ 同期が24時間以上成功していません。設定画面からMoodleとの連携をやり直してください。
+          </div>
+        )}
 
       {tab === 'today' && (
         <main className="px-4 py-4">

@@ -64,17 +64,6 @@ export async function deleteTask(id: string): Promise<void> {
   if (error) throw error
 }
 
-/** Moodle同期の結果(moodle由来のタスクだけ)をまとめて保存する。
- *  (user_id, moodle_event_id) のユニーク制約を使って新規は追加・既存は更新。 */
-export async function upsertMoodleTasks(tasks: Task[]): Promise<void> {
-  const rows = tasks.filter((t) => t.source === 'moodle').map(toRow)
-  if (rows.length === 0) return
-  const { error } = await supabase
-    .from('tasks')
-    .upsert(rows, { onConflict: 'user_id,moodle_event_id' })
-  if (error) throw error
-}
-
 export async function fetchSettings(): Promise<Settings> {
   const { data, error } = await supabase.from('user_settings').select('*').maybeSingle()
   if (error) throw error
