@@ -12,6 +12,7 @@ import { WEEKDAY_JA, fmtMinutes, fmtTime } from './format'
 import AuthScreen from './AuthScreen'
 import TaskRow from './TaskRow'
 import CalendarTab from './CalendarTab'
+import { UNIVERSITIES } from './universities'
 
 type Tab = 'today' | 'all' | 'calendar' | 'settings'
 type TaskDraft = Omit<Task, 'id' | 'createdAt'>
@@ -466,11 +467,6 @@ function AllTab(props: {
   )
 }
 
-const UNIVERSITIES = [
-  { name: '香川大学', url: 'https://kadai-moodle.kagawa-u.ac.jp' },
-  { name: 'その他の大学(URLを入力)', url: 'custom' },
-]
-
 function MoodleConnectCard(props: {
   settings: Settings
   onConnect: (moodleUrl: string, username: string, password: string) => Promise<void>
@@ -538,6 +534,9 @@ function MoodleConnectCard(props: {
                 </option>
               ))}
             </select>
+            <span className="mt-1 block text-xs text-gray-400">
+              ※SSO(学認・Microsoftログイン等)専用の大学では連携できない場合があります
+            </span>
           </label>
 
           {univ === 'custom' && (
