@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Settings, Task } from './types'
 import { DEFAULT_SETTINGS } from './types'
@@ -7,30 +7,13 @@ import * as repo from './repo'
 import { loadSettings as loadLocalSettings, loadTasks as loadLocalTasks } from './storage'
 import { connectMoodle, syncMoodleViaServer } from './moodle'
 import { buildTodayPlan } from './planner'
+import { buildRecommendation } from './recommend'
+import { WEEKDAY_JA, fmtMinutes, fmtTime } from './format'
 import AuthScreen from './AuthScreen'
+import TaskRow from './TaskRow'
+import CalendarTab from './CalendarTab'
 
-const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土']
-
-function fmtDue(iso: string): string {
-  const d = new Date(iso)
-  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAY_JA[d.getDay()]}) ${hm}`
-}
-
-function fmtMinutes(min: number): string {
-  if (min < 60) return `${min}分`
-  return min % 60 === 0 ? `${min / 60}時間` : `${Math.floor(min / 60)}時間${min % 60}分`
-}
-
-function dueColor(iso?: string): string {
-  if (!iso) return 'text-gray-400'
-  const diff = new Date(iso).getTime() - Date.now()
-  if (diff < 0) return 'text-red-600 font-bold'
-  if (diff < 2 * 86400_000) return 'text-orange-500 font-medium'
-  return 'text-gray-500'
-}
-
-type Tab = 'today' | 'all' | 'settings'
+type Tab = 'today' | 'all' | 'calendar' | 'settings'
 type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 
 export default function App() {
@@ -60,15 +43,36 @@ function Home() {
   const [tab, setTab] = useState<Tab>('today')
   const [syncing, setSyncing] = useState(false)
   const [message, setMessage] = useState('')
+  const initRan = useRef(false)
 
   const flash = (text: string) => {
     setMessage(text)
     setTimeout(() => setMessage(''), 4000)
   }
 
-  // 初回読み込み。クラウドが空でこの端末にlocalStorage時代のデータが残っていれば、
-  // 一度だけクラウドへ引っ越す。
+  const performSync = async (silent = false) => {
+    setSyncing(true)
+    try {
+      await syncMoodleViaServer()
+      const [fresh, freshSettings] = await Promise.all([repo.fetchTasks(), repo.fetchSettings()])
+      setTasks(fresh)
+      setSettings(freshSettings)
+      if (!silent) {
+        const count = fresh.filter((t) => t.source === 'moodle' && !t.done).length
+        flash(`同期完了! 未提出の課題 ${count}件`)
+      }
+    } catch (e) {
+      if (!silent) flash(e instanceof Error ? e.message : '同期に失敗しました')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  // 初回読み込み。localStorage時代のデータがあればクラウドへ移行し、
+  // 前回の同期から時間が経っていればバックグラウンドで自動同期する。
   useEffect(() => {
+    if (initRan.current) return
+    initRan.current = true
     ;(async () => {
       try {
         let [cloudTasks, cloudSettings] = await Promise.all([
@@ -90,10 +94,13 @@ function Home() {
         }
         setTasks(cloudTasks)
         setSettings(cloudSettings)
-        // 初回(まだMoodle未連携)なら設定タブへ案内する
+
         if (!cloudSettings.moodleToken) {
           setTab('settings')
           flash('ようこそ!まず大学のMoodleと連携しましょう')
+        } else {
+          const last = cloudSettings.lastSyncedAt ? new Date(cloudSettings.lastSyncedAt).getTime() : 0
+          if (Date.now() - last > 10 * 60 * 1000) void performSync(true)
         }
       } catch (e) {
         flash(e instanceof Error ? `読み込みに失敗しました: ${e.message}` : '読み込みに失敗しました')
@@ -101,12 +108,14 @@ function Home() {
         setLoading(false)
       }
     })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const plan = useMemo(
     () => buildTodayPlan(tasks, settings.minutesPerDay),
     [tasks, settings.minutesPerDay],
   )
+  const recommendation = useMemo(() => buildRecommendation(tasks, plan), [tasks, plan])
 
   const toggleDone = async (id: string) => {
     const t = tasks.find((x) => x.id === id)
@@ -148,31 +157,6 @@ function Home() {
     }
   }
 
-  const performSync = async () => {
-    setSyncing(true)
-    try {
-      await syncMoodleViaServer()
-      const [fresh, freshSettings] = await Promise.all([repo.fetchTasks(), repo.fetchSettings()])
-      setTasks(fresh)
-      setSettings(freshSettings)
-      const count = fresh.filter((t) => t.source === 'moodle' && !t.done).length
-      flash(`同期完了! 未提出の課題 ${count}件`)
-    } catch (e) {
-      flash(e instanceof Error ? e.message : '同期に失敗しました')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  const handleSync = async () => {
-    if (!settings.moodleToken) {
-      flash('先に設定画面でMoodleと連携してください')
-      setTab('settings')
-      return
-    }
-    await performSync()
-  }
-
   const handleConnect = async (moodleUrl: string, username: string, password: string) => {
     await connectMoodle(moodleUrl, username, password)
     flash('✅ 連携しました!課題を取得しています…')
@@ -189,9 +173,18 @@ function Home() {
   return (
     <div className="mx-auto min-h-screen max-w-md bg-gray-50 pb-24">
       <header className="sticky top-0 z-10 bg-indigo-600 px-4 py-3 text-white shadow">
-        <h1 className="text-lg font-bold">
-          サキヨミ <span className="text-xs font-normal opacity-70">(仮)</span>
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold">
+            サキヨミ <span className="text-xs font-normal opacity-70">(仮)</span>
+          </h1>
+          <span className="text-[11px] opacity-80">
+            {syncing
+              ? '同期中…'
+              : settings.lastSyncedAt
+                ? `✓ 自動同期 ${fmtTime(settings.lastSyncedAt)}`
+                : ''}
+          </span>
+        </div>
         <p className="text-xs opacity-80">課題を先読みして、今日やる分だけ教えてくれる</p>
       </header>
 
@@ -203,63 +196,43 @@ function Home() {
 
       {tab === 'today' && (
         <main className="px-4 py-4">
-          <h2 className="text-base font-bold text-gray-800">
+          <div
+            className={`rounded-xl p-3 ${
+              recommendation.warning
+                ? 'border border-red-200 bg-red-50'
+                : 'border border-indigo-100 bg-indigo-50'
+            }`}
+          >
+            <p className={`text-xs font-bold ${recommendation.warning ? 'text-red-500' : 'text-indigo-500'}`}>
+              ✨ AIおすすめ
+            </p>
+            <p className={`mt-1 text-sm ${recommendation.warning ? 'text-red-700' : 'text-indigo-900'}`}>
+              {recommendation.text}
+            </p>
+          </div>
+
+          <h2 className="mt-4 text-base font-bold text-gray-800">
             {today.getMonth() + 1}月{today.getDate()}日({WEEKDAY_JA[today.getDay()]}) 今日やること
           </h2>
           <p className="mt-1 text-sm text-gray-500">
             合計 {fmtMinutes(plan.totalMinutes)} / 上限 {fmtMinutes(settings.minutesPerDay)}
           </p>
 
-          {plan.overloaded && (
-            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              ⚠ このペースだと期限に間に合わない課題があります。1日の時間を増やすか、今日多めに進めましょう。
-            </div>
-          )}
-
           {plan.items.length === 0 ? (
             <div className="mt-10 text-center text-gray-500">
               <div className="text-4xl">✅</div>
               <p className="mt-2 text-sm">今日やる分はありません!</p>
-              {tasks.filter((t) => !t.done).length === 0 && (
-                <p className="mt-1 text-xs">
-                  「すべて」タブからMoodleと同期するか、タスクを追加してみましょう
-                </p>
-              )}
             </div>
           ) : (
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-3 space-y-2">
               {plan.items.map(({ task, minutes, crammed }) => (
-                <li
+                <TaskRow
                   key={task.id}
-                  className="flex items-start gap-3 rounded-xl bg-white p-3 shadow-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={task.done}
-                    onChange={() => toggleDone(task.id)}
-                    className="mt-1 h-5 w-5 accent-indigo-600"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-medium text-gray-800">{task.title}</span>
-                      {task.source === 'moodle' && (
-                        <span className="shrink-0 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700">
-                          Moodle
-                        </span>
-                      )}
-                    </div>
-                    {task.course && <p className="truncate text-xs text-gray-500">{task.course}</p>}
-                    {task.due && (
-                      <p className={`text-xs ${dueColor(task.due)}`}>期限 {fmtDue(task.due)}</p>
-                    )}
-                    {crammed && (
-                      <p className="text-xs text-red-600">⚠ 期限日に詰め込みが発生しています</p>
-                    )}
-                  </div>
-                  <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
-                    {fmtMinutes(minutes)}
-                  </span>
-                </li>
+                  task={task}
+                  minutes={minutes}
+                  crammed={crammed}
+                  onToggle={toggleDone}
+                />
               ))}
             </ul>
           )}
@@ -271,12 +244,14 @@ function Home() {
           tasks={tasks}
           onAdd={addTask}
           syncing={syncing}
-          onSync={handleSync}
+          onSync={() => performSync()}
           lastSyncedAt={settings.lastSyncedAt}
           toggleDone={toggleDone}
           removeTask={removeTask}
         />
       )}
+
+      {tab === 'calendar' && <CalendarTab tasks={tasks} onToggle={toggleDone} />}
 
       {tab === 'settings' && (
         <SettingsTab
@@ -290,8 +265,9 @@ function Home() {
       <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md border-t border-gray-200 bg-white">
         {(
           [
-            ['today', '📅', '今日'],
+            ['today', '🏠', '今日'],
             ['all', '📋', 'すべて'],
+            ['calendar', '📅', 'カレンダー'],
             ['settings', '⚙️', '設定'],
           ] as const
         ).map(([key, icon, label]) => (
@@ -321,6 +297,7 @@ function AllTab(props: {
   removeTask: (id: string) => void
 }) {
   const { tasks, onAdd, syncing, onSync, lastSyncedAt, toggleDone, removeTask } = props
+  const [view, setView] = useState<'all' | 'course'>('all')
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState('23:59')
@@ -350,22 +327,49 @@ function AllTab(props: {
     })
   const doneTasks = tasks.filter((t) => t.done)
 
+  const byCourse = useMemo(() => {
+    const m = new Map<string, Task[]>()
+    for (const t of active) {
+      const key = t.course ?? 'その他'
+      m.set(key, [...(m.get(key) ?? []), t])
+    }
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ja'))
+  }, [active])
+
   return (
     <main className="px-4 py-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between text-xs text-gray-400">
+        <span>{lastSyncedAt ? `✓ 自動同期 · 最終更新 ${fmtTime(lastSyncedAt)}` : 'まだ同期していません'}</span>
         <button
           onClick={onSync}
           disabled={syncing}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          aria-label="今すぐ同期"
+          className="rounded-lg px-2 py-1 hover:bg-gray-100 disabled:opacity-50"
         >
-          {syncing ? '同期中…' : '🔄 Moodleと同期'}
+          {syncing ? '同期中…' : '🔄'}
         </button>
-        {lastSyncedAt && (
-          <span className="text-xs text-gray-400">最終同期 {fmtDue(lastSyncedAt)}</span>
-        )}
       </div>
 
-      <div className="mt-4 rounded-xl bg-white p-3 shadow-sm">
+      <div className="mt-3 flex rounded-lg bg-gray-100 p-0.5 text-sm">
+        {(
+          [
+            ['all', 'すべて'],
+            ['course', '講義ごと'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className={`flex-1 rounded-md py-1.5 ${
+              view === key ? 'bg-white font-medium text-indigo-600 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 rounded-xl bg-white p-3 shadow-sm">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -405,46 +409,36 @@ function AllTab(props: {
         </div>
       </div>
 
-      <ul className="mt-4 space-y-2">
-        {active.map((task) => (
-          <li key={task.id} className="flex items-start gap-3 rounded-xl bg-white p-3 shadow-sm">
-            <input
-              type="checkbox"
-              checked={task.done}
-              onChange={() => toggleDone(task.id)}
-              className="mt-1 h-5 w-5 accent-indigo-600"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="truncate font-medium text-gray-800">{task.title}</span>
-                {task.source === 'moodle' && (
-                  <span className="shrink-0 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700">
-                    Moodle
-                  </span>
-                )}
-              </div>
-              {task.course && <p className="truncate text-xs text-gray-500">{task.course}</p>}
-              <p className="text-xs">
-                {task.due ? (
-                  <span className={dueColor(task.due)}>期限 {fmtDue(task.due)}</span>
-                ) : (
-                  <span className="text-gray-400">期限なし</span>
-                )}
-                <span className="ml-2 text-gray-400">見積 {fmtMinutes(task.estimatedMinutes)}</span>
-              </p>
-            </div>
-            {task.source === 'manual' && (
-              <button
-                onClick={() => removeTask(task.id)}
-                className="shrink-0 text-gray-300 hover:text-red-500"
-                aria-label="削除"
-              >
-                ✕
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+      {view === 'all' ? (
+        <ul className="mt-4 space-y-2">
+          {active.map((task) => (
+            <TaskRow key={task.id} task={task} onToggle={toggleDone} onRemove={removeTask} />
+          ))}
+        </ul>
+      ) : (
+        byCourse.map(([course, list]) => (
+          <div key={course} className="mt-4">
+            <h3 className="mb-2 text-sm font-bold text-gray-700">
+              {course} <span className="ml-1 text-xs font-normal text-gray-400">{list.length}件</span>
+            </h3>
+            <ul className="space-y-2">
+              {list.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onToggle={toggleDone}
+                  onRemove={removeTask}
+                  showCourse={false}
+                />
+              ))}
+            </ul>
+          </div>
+        ))
+      )}
+
+      {active.length === 0 && (
+        <p className="mt-6 text-center text-sm text-gray-400">未提出の課題はありません 🎉</p>
+      )}
 
       {doneTasks.length > 0 && (
         <div className="mt-4">
@@ -524,10 +518,7 @@ function MoodleConnectCard(props: {
       </div>
 
       {connected && !showForm && (
-        <button
-          onClick={() => setShowForm(true)}
-          className="mt-3 text-sm text-indigo-600 underline"
-        >
+        <button onClick={() => setShowForm(true)} className="mt-3 text-sm text-indigo-600 underline">
           連携をやり直す
         </button>
       )}
@@ -610,7 +601,11 @@ function MoodleConnectCard(props: {
                 onClick={() => {
                   if (!token.trim()) return
                   const moodleUrl = univ === 'custom' ? customUrl.trim() : univ
-                  onSave({ ...settings, moodleUrl: moodleUrl || settings.moodleUrl, moodleToken: token.trim() })
+                  onSave({
+                    ...settings,
+                    moodleUrl: moodleUrl || settings.moodleUrl,
+                    moodleToken: token.trim(),
+                  })
                   setToken('')
                   setShowForm(false)
                 }}
@@ -625,6 +620,12 @@ function MoodleConnectCard(props: {
     </div>
   )
 }
+
+const COMING_SOON = [
+  ['💼', '就活サポート'],
+  ['🏢', 'インターン・企業情報'],
+  ['📝', 'ES・履歴書のAI添削'],
+] as const
 
 function SettingsTab(props: {
   settings: Settings
@@ -709,6 +710,20 @@ function SettingsTab(props: {
           iPhoneの場合は、先にSafariの共有ボタンから「ホーム画面に追加」し、
           ホーム画面のサキヨミを開いてからこのボタンを押してください
         </p>
+      </div>
+
+      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+        <h3 className="text-sm font-bold text-gray-800">🚀 近日公開</h3>
+        <ul className="mt-2 space-y-2">
+          {COMING_SOON.map(([icon, label]) => (
+            <li key={label} className="flex items-center justify-between text-sm text-gray-400">
+              <span>
+                {icon} {label}
+              </span>
+              <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px]">準備中</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <button
