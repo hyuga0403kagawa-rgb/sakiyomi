@@ -1,6 +1,23 @@
 import { useState } from 'react'
 import { supabase } from './supabase'
 
+/** スマホ入力にありがちな「余分なスペース」「全角文字」を自動で直す。
+ *  例: "Ｔａｒｏ@ Gmail.com " → "taro@gmail.com" */
+function normalizeEmail(raw: string): string {
+  return raw
+    .replace(/[\s　]/g, '')
+    .replace(/[Ａ-Ｚａ-ｚ０-９＠．]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .toLowerCase()
+}
+
+function emailProblem(email: string): string | null {
+  if (!email) return 'メールアドレスを入力してください'
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return 'メールアドレスの形式が正しくないようです(全角文字や打ち間違いがないか確認してください)'
+  }
+  return null
+}
+
 export default function AuthScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -8,9 +25,15 @@ export default function AuthScreen() {
   const [message, setMessage] = useState('')
 
   const signIn = async () => {
+    const cleaned = normalizeEmail(email)
+    const problem = emailProblem(cleaned)
+    if (problem) {
+      setMessage(problem)
+      return
+    }
     setBusy(true)
     setMessage('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({ email: cleaned, password })
     if (error) {
       setMessage(
         error.message === 'Invalid login credentials'
@@ -22,15 +45,25 @@ export default function AuthScreen() {
   }
 
   const signUp = async () => {
+    const cleaned = normalizeEmail(email)
+    const problem = emailProblem(cleaned)
+    if (problem) {
+      setMessage(problem)
+      return
+    }
     if (password.length < 6) {
       setMessage('パスワードは6文字以上にしてください')
       return
     }
     setBusy(true)
     setMessage('')
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { error } = await supabase.auth.signUp({ email: cleaned, password })
     if (error) {
-      setMessage(`登録に失敗しました: ${error.message}`)
+      setMessage(
+        error.message.includes('invalid format')
+          ? 'メールアドレスの形式が正しくないようです(全角文字や余分なスペースがないか確認してください)'
+          : `登録に失敗しました: ${error.message}`,
+      )
     } else {
       setMessage(
         '確認メールを送りました!メール内のリンクを開いてから、この画面で「ログイン」を押してください。',
