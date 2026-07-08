@@ -661,6 +661,26 @@ function SettingsTab(props: {
     }
   }
 
+  const [deleting, setDeleting] = useState(false)
+  const handleDeleteAccount = async () => {
+    if (
+      !window.confirm(
+        'アカウントを削除すると、課題データ・設定・通知の登録がすべて完全に消去されます。この操作は取り消せません。削除しますか?',
+      )
+    )
+      return
+    if (!window.confirm('本当に削除してよろしいですか?(最終確認)')) return
+    setDeleting(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-account', { body: {} })
+      if (error || data?.error) throw new Error(data?.error ?? '削除に失敗しました')
+      await supabase.auth.signOut()
+    } catch (e) {
+      onFlash(e instanceof Error ? e.message : '削除に失敗しました')
+      setDeleting(false)
+    }
+  }
+
   return (
     <main className="px-4 py-4">
       <h2 className="text-base font-bold text-gray-800">設定</h2>
@@ -734,6 +754,14 @@ function SettingsTab(props: {
         className="mt-6 w-full rounded-lg border border-gray-300 py-2 text-sm text-gray-500"
       >
         ログアウト
+      </button>
+
+      <button
+        onClick={handleDeleteAccount}
+        disabled={deleting}
+        className="mt-3 w-full rounded-lg border border-red-200 py-2 text-sm text-red-400 disabled:opacity-50"
+      >
+        {deleting ? '削除中…' : 'アカウントを削除(全データ消去)'}
       </button>
 
       <p className="mt-4 text-center text-xs">
