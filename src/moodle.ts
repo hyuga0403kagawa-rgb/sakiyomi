@@ -11,6 +11,22 @@ export interface SyncResult {
   error?: string
 }
 
+/**
+ * MoodleのID/パスワードをサーバー側(moodle-connect)でトークンに交換して保存する。
+ * パスワードはこのリクエストの中でしか使われず、どこにも保存されない。
+ */
+export async function connectMoodle(
+  moodleUrl: string,
+  username: string,
+  password: string,
+): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('moodle-connect', {
+    body: { moodleUrl, username, password },
+  })
+  if (error) throw new Error('連携サーバーへの接続に失敗しました')
+  if (data?.error) throw new Error(data.error)
+}
+
 export async function syncMoodleViaServer(): Promise<SyncResult> {
   const { data, error } = await supabase.functions.invoke('moodle-sync', { body: {} })
   if (error) throw new Error('同期サーバーへの接続に失敗しました')

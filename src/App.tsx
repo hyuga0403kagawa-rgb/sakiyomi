@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
 import * as repo from './repo'
 import { loadSettings as loadLocalSettings, loadTasks as loadLocalTasks } from './storage'
-import { syncMoodleViaServer } from './moodle'
+import { connectMoodle, syncMoodleViaServer } from './moodle'
 import { buildTodayPlan } from './planner'
 import AuthScreen from './AuthScreen'
 
@@ -90,6 +90,11 @@ function Home() {
         }
         setTasks(cloudTasks)
         setSettings(cloudSettings)
+        // 初回(まだMoodle未連携)なら設定タブへ案内する
+        if (!cloudSettings.moodleToken) {
+          setTab('settings')
+          flash('ようこそ!まず大学のMoodleと連携しましょう')
+        }
       } catch (e) {
         flash(e instanceof Error ? `読み込みに失敗しました: ${e.message}` : '読み込みに失敗しました')
       } finally {
@@ -143,12 +148,7 @@ function Home() {
     }
   }
 
-  const handleSync = async () => {
-    if (!settings.moodleToken) {
-      flash('先に設定画面でMoodleトークンを登録してください')
-      setTab('settings')
-      return
-    }
+  const performSync = async () => {
     setSyncing(true)
     try {
       await syncMoodleViaServer()
@@ -162,6 +162,22 @@ function Home() {
     } finally {
       setSyncing(false)
     }
+  }
+
+  const handleSync = async () => {
+    if (!settings.moodleToken) {
+      flash('先に設定画面でMoodleと連携してください')
+      setTab('settings')
+      return
+    }
+    await performSync()
+  }
+
+  const handleConnect = async (moodleUrl: string, username: string, password: string) => {
+    await connectMoodle(moodleUrl, username, password)
+    flash('✅ 連携しました!課題を取得しています…')
+    await performSync()
+    setTab('today')
   }
 
   const today = new Date()
@@ -263,7 +279,12 @@ function Home() {
       )}
 
       {tab === 'settings' && (
-        <SettingsTab settings={settings} onSave={saveSettingsAll} onFlash={flash} />
+        <SettingsTab
+          settings={settings}
+          onSave={saveSettingsAll}
+          onFlash={flash}
+          onConnect={handleConnect}
+        />
       )}
 
       <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md border-t border-gray-200 bg-white">
@@ -451,14 +472,167 @@ function AllTab(props: {
   )
 }
 
+const UNIVERSITIES = [
+  { name: '香川大学', url: 'https://kadai-moodle.kagawa-u.ac.jp' },
+  { name: 'その他の大学(URLを入力)', url: 'custom' },
+]
+
+function MoodleConnectCard(props: {
+  settings: Settings
+  onConnect: (moodleUrl: string, username: string, password: string) => Promise<void>
+  onSave: (s: Settings) => void
+}) {
+  const { settings, onConnect, onSave } = props
+  const connected = Boolean(settings.moodleToken)
+  const [showForm, setShowForm] = useState(!connected)
+  const [univ, setUniv] = useState(UNIVERSITIES[0].url)
+  const [customUrl, setCustomUrl] = useState('')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [token, setToken] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const connect = async () => {
+    const moodleUrl = univ === 'custom' ? customUrl.trim() : univ
+    if (!moodleUrl || !username.trim() || !password) {
+      setMessage('大学・ID・パスワードをすべて入力してください')
+      return
+    }
+    setBusy(true)
+    setMessage('')
+    try {
+      await onConnect(moodleUrl, username.trim(), password)
+      setPassword('')
+      setShowForm(false)
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '連携に失敗しました')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-gray-800">大学のMoodleと連携</h3>
+        {connected && (
+          <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+            ✅ 連携済み
+          </span>
+        )}
+      </div>
+
+      {connected && !showForm && (
+        <button
+          onClick={() => setShowForm(true)}
+          className="mt-3 text-sm text-indigo-600 underline"
+        >
+          連携をやり直す
+        </button>
+      )}
+
+      {showForm && (
+        <div className="mt-3 space-y-3">
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">大学</span>
+            <select
+              value={univ}
+              onChange={(e) => setUniv(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            >
+              {UNIVERSITIES.map((u) => (
+                <option key={u.url} value={u.url}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {univ === 'custom' && (
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">MoodleのURL</span>
+              <input
+                value={customUrl}
+                onChange={(e) => setCustomUrl(e.target.value)}
+                placeholder="https://moodle.example-u.ac.jp"
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              />
+            </label>
+          )}
+
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">MoodleのID</span>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="off"
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">Moodleのパスワード</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="off"
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            />
+            <span className="mt-1 block text-xs text-gray-400">
+              パスワードは保存されません。Moodle公式アプリと同じ仕組みで「合鍵(トークン)」に
+              交換され、以後はトークンだけで同期します
+            </span>
+          </label>
+
+          {message && <p className="text-xs text-red-600">{message}</p>}
+
+          <button
+            onClick={connect}
+            disabled={busy}
+            className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {busy ? '連携中…' : '🔗 連携する'}
+          </button>
+
+          <details className="text-xs text-gray-400">
+            <summary className="cursor-pointer">上級者向け: トークンを直接登録する</summary>
+            <div className="mt-2 flex gap-2">
+              <input
+                type="password"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Webサービストークン"
+                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              />
+              <button
+                onClick={() => {
+                  if (!token.trim()) return
+                  const moodleUrl = univ === 'custom' ? customUrl.trim() : univ
+                  onSave({ ...settings, moodleUrl: moodleUrl || settings.moodleUrl, moodleToken: token.trim() })
+                  setToken('')
+                  setShowForm(false)
+                }}
+                className="rounded-lg border border-indigo-600 px-3 py-2 text-sm font-medium text-indigo-600"
+              >
+                登録
+              </button>
+            </div>
+          </details>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SettingsTab(props: {
   settings: Settings
   onSave: (s: Settings) => void
   onFlash: (text: string) => void
+  onConnect: (moodleUrl: string, username: string, password: string) => Promise<void>
 }) {
-  const { settings, onSave, onFlash } = props
-  const [url, setUrl] = useState(settings.moodleUrl)
-  const [token, setToken] = useState(settings.moodleToken)
+  const { settings, onSave, onFlash, onConnect } = props
   const [minutes, setMinutes] = useState(settings.minutesPerDay)
   const [notifyTime, setNotifyTime] = useState(settings.notifyTime)
   const [enabling, setEnabling] = useState(false)
@@ -466,8 +640,6 @@ function SettingsTab(props: {
   const save = () =>
     onSave({
       ...settings,
-      moodleUrl: url.trim(),
-      moodleToken: token.trim(),
       minutesPerDay: minutes,
       notifyTime,
     })
@@ -489,30 +661,9 @@ function SettingsTab(props: {
     <main className="px-4 py-4">
       <h2 className="text-base font-bold text-gray-800">設定</h2>
 
+      <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
+
       <div className="mt-4 space-y-4 rounded-xl bg-white p-4 shadow-sm">
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">MoodleのURL</span>
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">Moodleトークン</span>
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="check_api_support.py で取得した値"
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          />
-          <span className="mt-1 block text-xs text-gray-400">
-            トークンはあなた専用のクラウドDBに保存され、課題の自動同期に使われます
-          </span>
-        </label>
-
         <label className="block">
           <span className="text-sm font-medium text-gray-700">
             1日に課題へ使える時間: {fmtMinutes(minutes)}
