@@ -1,0 +1,7 @@
+project_id = "kdyffkcowdkbgtbledbc"
+
+[functions.moodle-sync]
+verify_jwt = false
+
+[functions.push-notify]
+verify_jwt = false

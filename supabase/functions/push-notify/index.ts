@@ -16,6 +16,13 @@ Deno.serve(async (req) => {
   if (req.headers.get('x-sync-secret') !== Deno.env.get('SYNC_SECRET')) {
     return json({ error: 'unauthorized' }, 401)
   }
+  // force=true のときは時刻・通知済み判定を無視して即送信する(テスト用)
+  let force = false
+  try {
+    force = (await req.json())?.force === true
+  } catch {
+    force = false
+  }
   webpush.setVapidDetails(
     Deno.env.get('VAPID_SUBJECT')!,
     Deno.env.get('VAPID_PUBLIC_KEY')!,
@@ -33,8 +40,8 @@ Deno.serve(async (req) => {
   const { data: users } = await admin.from('user_settings').select('*')
   const results = []
   for (const s of users ?? []) {
-    if ((s.notified_date ?? '') === today) continue
-    if (hm < (s.notify_time || '18:00')) continue
+    if (!force && (s.notified_date ?? '') === today) continue
+    if (!force && hm < (s.notify_time || '18:00')) continue
 
     const { data: tasks } = await admin
       .from('tasks')
@@ -80,7 +87,9 @@ Deno.serve(async (req) => {
         }
       }
     }
-    await admin.from('user_settings').update({ notified_date: today }).eq('user_id', s.user_id)
+    if (!force) {
+      await admin.from('user_settings').update({ notified_date: today }).eq('user_id', s.user_id)
+    }
     results.push({ userId: s.user_id, sent, pending: pending.length })
   }
   return json({ results })

@@ -89,6 +89,16 @@ Deno.serve(async (req) => {
     const { data } = await admin.from('user_settings').select('user_id').neq('moodle_token', '')
     const results = []
     for (const row of data ?? []) results.push(await syncUser(admin, row.user_id))
+    // 同期のあとに通知チェックも走らせる(専用cronを増やさずに毎時通知を回すため)
+    try {
+      await fetch(Deno.env.get('SUPABASE_URL')! + '/functions/v1/push-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-sync-secret': secret },
+        body: JSON.stringify({}),
+      })
+    } catch (_) {
+      // 通知チェックの失敗は同期結果に影響させない
+    }
     return json({ mode: 'cron', results })
   }
 
