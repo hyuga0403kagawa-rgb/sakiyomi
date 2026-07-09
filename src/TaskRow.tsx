@@ -8,9 +8,10 @@ export default function TaskRow(props: {
   crammed?: boolean
   onToggle: (id: string) => void
   onRemove?: (id: string) => void
+  onEdit?: (task: Task) => void
   showCourse?: boolean
 }) {
-  const { task, minutes, crammed, onToggle, onRemove, showCourse = true } = props
+  const { task, minutes, crammed, onToggle, onRemove, onEdit, showCourse = true } = props
   return (
     <li className="flex items-start gap-3 rounded-xl bg-white p-3 shadow-sm">
       <input
@@ -45,6 +46,15 @@ export default function TaskRow(props: {
         <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
           {fmtMinutes(minutes)}
         </span>
+      )}
+      {onEdit && (
+        <button
+          onClick={() => onEdit(task)}
+          className="shrink-0 text-gray-300 hover:text-indigo-500"
+          aria-label="編集"
+        >
+          ✏️
+        </button>
       )}
       {onRemove && task.source === 'manual' && (
         <button

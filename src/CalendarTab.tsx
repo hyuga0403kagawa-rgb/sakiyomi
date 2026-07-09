@@ -3,9 +3,14 @@ import type { Task } from './types'
 import TaskRow from './TaskRow'
 import { WEEKDAY_JA, dayKey } from './format'
 
-/** 締切を月表示で確認するカレンダー。日付タップでその日の課題を下に表示する */
-export default function CalendarTab(props: { tasks: Task[]; onToggle: (id: string) => void }) {
-  const { tasks, onToggle } = props
+/** 締切を月表示で確認するカレンダー(「すべて」タブの📅から開くサブ画面)。
+ *  将来的にはGoogle/Apple/Outlookカレンダー連携(プレミアム)をここに載せる予定 */
+export default function CalendarTab(props: {
+  tasks: Task[]
+  onToggle: (id: string) => void
+  onBack: () => void
+}) {
+  const { tasks, onToggle, onBack } = props
   const today = new Date()
   const todayKey = dayKey(today)
   const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
@@ -41,7 +46,10 @@ export default function CalendarTab(props: { tasks: Task[]; onToggle: (id: strin
 
   return (
     <main className="px-4 py-4">
-      <div className="flex items-center justify-between">
+      <button onClick={onBack} className="text-sm text-indigo-600">
+        ← すべてに戻る
+      </button>
+      <div className="mt-2 flex items-center justify-between">
         <button
           onClick={() => moveMonth(-1)}
           className="rounded-lg px-3 py-1 text-lg text-gray-500 hover:bg-gray-100"

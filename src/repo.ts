@@ -1,5 +1,13 @@
 import { supabase } from './supabase'
-import type { Settings, Task, TaskSource } from './types'
+import type {
+  AttendanceRecord,
+  AttendanceStatus,
+  CourseInfo,
+  Settings,
+  Task,
+  TaskSource,
+  TimetableSlot,
+} from './types'
 import { DEFAULT_SETTINGS } from './types'
 
 // Supabaseとのやり取りをここに集約する(App側はTask/Settings型だけを扱う)
@@ -61,6 +69,114 @@ export async function updateTask(t: Task): Promise<void> {
 
 export async function deleteTask(id: string): Promise<void> {
   const { error } = await supabase.from('tasks').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- 時間割 ----------
+
+export async function fetchTimetable(): Promise<TimetableSlot[]> {
+  const { data, error } = await supabase.from('timetable_slots').select('*')
+  if (error) throw error
+  return data.map((r) => ({
+    id: r.id,
+    day: r.day,
+    period: r.period,
+    course: r.course,
+    room: r.room ?? undefined,
+  }))
+}
+
+export async function addTimetableSlot(
+  day: number,
+  period: number,
+  course: string,
+  room?: string,
+): Promise<TimetableSlot> {
+  const { data, error } = await supabase
+    .from('timetable_slots')
+    .upsert(
+      { day, period, course, room: room || null },
+      { onConflict: 'user_id,day,period' },
+    )
+    .select()
+    .single()
+  if (error) throw error
+  return { id: data.id, day: data.day, period: data.period, course: data.course, room: data.room ?? undefined }
+}
+
+export async function deleteTimetableSlot(id: string): Promise<void> {
+  const { error } = await supabase.from('timetable_slots').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- 講義情報(シラバス) ----------
+
+export async function fetchCourseInfo(course: string): Promise<CourseInfo | null> {
+  const { data, error } = await supabase
+    .from('course_info')
+    .select('*')
+    .eq('course', course)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  return {
+    course: data.course,
+    attendancePct: data.attendance_pct ?? undefined,
+    reportPct: data.report_pct ?? undefined,
+    examPct: data.exam_pct ?? undefined,
+    textbook: data.textbook ?? undefined,
+    bringIn: data.bring_in ?? undefined,
+    notes: data.notes ?? undefined,
+  }
+}
+
+export async function upsertCourseInfo(info: CourseInfo): Promise<void> {
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+  if (!userId) throw new Error('ログインしていません')
+  const { error } = await supabase.from('course_info').upsert(
+    {
+      user_id: userId,
+      course: info.course,
+      attendance_pct: info.attendancePct ?? null,
+      report_pct: info.reportPct ?? null,
+      exam_pct: info.examPct ?? null,
+      textbook: info.textbook ?? null,
+      bring_in: info.bringIn ?? null,
+      notes: info.notes ?? null,
+    },
+    { onConflict: 'user_id,course' },
+  )
+  if (error) throw error
+}
+
+// ---------- 出席管理 ----------
+
+export async function fetchAttendance(course: string): Promise<AttendanceRecord[]> {
+  const { data, error } = await supabase
+    .from('attendance_records')
+    .select('*')
+    .eq('course', course)
+    .order('date', { ascending: false })
+  if (error) throw error
+  return data.map((r) => ({ id: r.id, course: r.course, date: r.date, status: r.status }))
+}
+
+export async function addAttendance(
+  course: string,
+  status: AttendanceStatus,
+): Promise<AttendanceRecord> {
+  const { data, error } = await supabase
+    .from('attendance_records')
+    .insert({ course, status })
+    .select()
+    .single()
+  if (error) throw error
+  return { id: data.id, course: data.course, date: data.date, status: data.status }
+}
+
+export async function deleteAttendance(id: string): Promise<void> {
+  const { error } = await supabase.from('attendance_records').delete().eq('id', id)
   if (error) throw error
 }
 

@@ -13,9 +13,11 @@ import AuthScreen from './AuthScreen'
 import TaskRow from './TaskRow'
 import CalendarTab from './CalendarTab'
 import MaterialsTab from './MaterialsTab'
+import TimetableTab from './TimetableTab'
 import { UNIVERSITIES } from './universities'
 
-type Tab = 'today' | 'all' | 'calendar' | 'materials' | 'settings'
+// calendar は下タブには出さないサブ画面(「すべて」の📅から開く)
+type Tab = 'today' | 'timetable' | 'all' | 'calendar' | 'materials' | 'settings'
 type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 
 export default function App() {
@@ -215,6 +217,16 @@ function Home() {
     }
   }
 
+  const editTask = async (updated: Task) => {
+    setTasks((ts) => ts.map((t) => (t.id === updated.id ? updated : t)))
+    try {
+      await repo.updateTask(updated)
+      flash('タスクを更新しました')
+    } catch {
+      flash('更新に失敗しました')
+    }
+  }
+
   const saveSettingsAll = async (s: Settings) => {
     setSettings(s)
     try {
@@ -315,19 +327,27 @@ function Home() {
         </main>
       )}
 
+      {tab === 'timetable' && (
+        <TimetableTab tasks={tasks} onToggle={toggleDone} onFlash={flash} />
+      )}
+
       {tab === 'all' && (
         <AllTab
           tasks={tasks}
           onAdd={addTask}
+          onEdit={editTask}
           syncing={syncing}
           onSync={() => performSync()}
           lastSyncedAt={settings.lastSyncedAt}
           toggleDone={toggleDone}
           removeTask={removeTask}
+          onOpenCalendar={() => setTab('calendar')}
         />
       )}
 
-      {tab === 'calendar' && <CalendarTab tasks={tasks} onToggle={toggleDone} />}
+      {tab === 'calendar' && (
+        <CalendarTab tasks={tasks} onToggle={toggleDone} onBack={() => setTab('all')} />
+      )}
 
       {tab === 'materials' && <MaterialsTab />}
 
@@ -344,8 +364,8 @@ function Home() {
         {(
           [
             ['today', '🏠', '今日'],
+            ['timetable', '🗓️', '時間割'],
             ['all', '📋', 'すべて'],
-            ['calendar', '📅', '予定'],
             ['materials', '📚', '資料'],
             ['settings', '⚙️', '設定'],
           ] as const
@@ -369,19 +389,60 @@ function Home() {
 function AllTab(props: {
   tasks: Task[]
   onAdd: (draft: TaskDraft) => void
+  onEdit: (task: Task) => void
   syncing: boolean
   onSync: () => void
   lastSyncedAt?: string
   toggleDone: (id: string) => void
   removeTask: (id: string) => void
+  onOpenCalendar: () => void
 }) {
-  const { tasks, onAdd, syncing, onSync, lastSyncedAt, toggleDone, removeTask } = props
+  const { tasks, onAdd, onEdit, syncing, onSync, lastSyncedAt, toggleDone, removeTask, onOpenCalendar } = props
   const [view, setView] = useState<'all' | 'course'>('all')
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState('23:59')
   const [estimate, setEstimate] = useState(60)
   const [showDone, setShowDone] = useState(false)
+  const [editing, setEditing] = useState<Task | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editTime, setEditTime] = useState('23:59')
+  const [editEstimate, setEditEstimate] = useState(60)
+
+  const startEdit = (task: Task) => {
+    setEditing(task)
+    setEditTitle(task.title)
+    if (task.due) {
+      const d = new Date(task.due)
+      setEditDate(
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+      )
+      setEditTime(
+        `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+      )
+    } else {
+      setEditDate('')
+      setEditTime('23:59')
+    }
+    setEditEstimate(task.estimatedMinutes)
+  }
+
+  const saveEdit = () => {
+    if (!editing) return
+    const isManual = editing.source === 'manual'
+    onEdit({
+      ...editing,
+      title: isManual && editTitle.trim() ? editTitle.trim() : editing.title,
+      due: isManual
+        ? editDate
+          ? new Date(`${editDate}T${editTime || '23:59'}`).toISOString()
+          : undefined
+        : editing.due,
+      estimatedMinutes: editEstimate,
+    })
+    setEditing(null)
+  }
 
   const addTask = () => {
     if (!title.trim()) return
@@ -419,15 +480,85 @@ function AllTab(props: {
     <main className="px-4 py-4">
       <div className="flex items-center justify-between text-xs text-gray-400">
         <span>{lastSyncedAt ? `✓ 自動同期 · 最終更新 ${fmtTime(lastSyncedAt)}` : 'まだ同期していません'}</span>
-        <button
-          onClick={onSync}
-          disabled={syncing}
-          aria-label="今すぐ同期"
-          className="rounded-lg px-2 py-1 hover:bg-gray-100 disabled:opacity-50"
-        >
-          {syncing ? '同期中…' : '🔄'}
-        </button>
+        <span className="flex items-center gap-1">
+          <button
+            onClick={onOpenCalendar}
+            aria-label="カレンダー表示"
+            className="rounded-lg px-2 py-1 hover:bg-gray-100"
+          >
+            📅
+          </button>
+          <button
+            onClick={onSync}
+            disabled={syncing}
+            aria-label="今すぐ同期"
+            className="rounded-lg px-2 py-1 hover:bg-gray-100 disabled:opacity-50"
+          >
+            {syncing ? '同期中…' : '🔄'}
+          </button>
+        </span>
       </div>
+
+      {editing && (
+        <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-800">タスクを編集</h3>
+          {editing.source === 'manual' ? (
+            <>
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-600"
+                />
+                <input
+                  type="time"
+                  value={editTime}
+                  onChange={(e) => setEditTime(e.target.value)}
+                  className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-600"
+                />
+              </div>
+            </>
+          ) : (
+            <p className="mt-1 text-xs text-gray-400">
+              Moodleの課題のため、名前と期限は変更できません(見積もり時間のみ変更可)
+            </p>
+          )}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-gray-500">見積もり</span>
+            <select
+              value={editEstimate}
+              onChange={(e) => setEditEstimate(Number(e.target.value))}
+              className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-600"
+            >
+              {[15, 30, 60, 90, 120, 180, 240, 300].map((m) => (
+                <option key={m} value={m}>
+                  {fmtMinutes(m)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => setEditing(null)}
+              className="flex-1 rounded-lg border border-gray-200 py-2 text-sm text-gray-500"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={saveEdit}
+              className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 flex rounded-lg bg-gray-100 p-0.5 text-sm">
         {(
@@ -491,7 +622,13 @@ function AllTab(props: {
       {view === 'all' ? (
         <ul className="mt-4 space-y-2">
           {active.map((task) => (
-            <TaskRow key={task.id} task={task} onToggle={toggleDone} onRemove={removeTask} />
+            <TaskRow
+              key={task.id}
+              task={task}
+              onToggle={toggleDone}
+              onRemove={removeTask}
+              onEdit={startEdit}
+            />
           ))}
         </ul>
       ) : (
@@ -507,6 +644,7 @@ function AllTab(props: {
                   task={task}
                   onToggle={toggleDone}
                   onRemove={removeTask}
+                  onEdit={startEdit}
                   showCourse={false}
                 />
               ))}

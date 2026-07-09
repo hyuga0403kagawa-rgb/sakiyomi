@@ -31,3 +31,32 @@ export const DEFAULT_SETTINGS: Settings = {
   minutesPerDay: 120,
   notifyTime: '18:00',
 }
+
+/** 時間割の1コマ(day: 0=月〜5=土, period: 1〜6限) */
+export interface TimetableSlot {
+  id: string
+  day: number
+  period: number
+  course: string
+  room?: string
+}
+
+/** 講義ごとの情報(シラバスから読み取った評価割合など) */
+export interface CourseInfo {
+  course: string
+  attendancePct?: number
+  reportPct?: number
+  examPct?: number
+  textbook?: string
+  bringIn?: string
+  notes?: string
+}
+
+export type AttendanceStatus = 'present' | 'absent' | 'late'
+
+export interface AttendanceRecord {
+  id: string
+  course: string
+  date: string
+  status: AttendanceStatus
+}
