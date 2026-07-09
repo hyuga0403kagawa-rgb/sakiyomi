@@ -66,13 +66,20 @@ export default function AuthScreen() {
     }
     setBusy(true)
     setMessage(null)
-    const { error } = await supabase.auth.signUp({ email: cleaned, password })
+    const { data, error } = await supabase.auth.signUp({ email: cleaned, password })
     if (error) {
       fail(
         error.message.includes('invalid format')
           ? 'メールアドレスの形式が正しくないようです(全角文字や余分なスペースがないか確認してください)'
           : `登録に失敗しました: ${error.message}`,
       )
+      setBusy(false)
+      return
+    }
+    // メール確認オフの設定ではsessionが即発行され、そのままログイン状態になる
+    // (onAuthStateChangeがHomeへ切り替える)。sessionが無い場合のみ確認メール案内を出す。
+    if (data.session) {
+      info('登録が完了しました!ようこそ 🎉')
     } else {
       info(
         '確認メールを送りました!メール内のリンクを開いてから、この画面で「ログイン」を押してください。',
