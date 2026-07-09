@@ -164,15 +164,30 @@ export default function TimetableTab(props: {
           <input
             value={course}
             onChange={(e) => setCourse(e.target.value)}
-            list="known-courses"
             placeholder="講義名(Moodleと同じ名前推奨)"
             className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
           />
-          <datalist id="known-courses">
-            {knownCourses.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
+          {(() => {
+            // 部分一致で候補を出す(「Web入門」→「Web入門 2026」がヒット)
+            const q = course.trim().toLowerCase()
+            const suggestions = knownCourses
+              .filter((c) => c !== course && (!q || c.toLowerCase().includes(q)))
+              .slice(0, 6)
+            if (suggestions.length === 0) return null
+            return (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {suggestions.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setCourse(c)}
+                    className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700"
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
           <input
             value={room}
             onChange={(e) => setRoom(e.target.value)}

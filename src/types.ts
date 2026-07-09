@@ -23,6 +23,15 @@ export interface Settings {
   /** プッシュ通知を送る時刻 (HH:MM) */
   notifyTime: string
   lastSyncedAt?: string
+  /** プロフィール */
+  nickname?: string
+  university?: string
+  faculty?: string
+  department?: string
+  grade?: string
+  /** 'icon:1'〜'icon:5' または 'photo' */
+  avatar?: string
+  avatarUrl?: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {

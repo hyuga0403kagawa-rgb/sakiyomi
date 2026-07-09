@@ -190,6 +190,13 @@ export async function fetchSettings(): Promise<Settings> {
     minutesPerDay: data.minutes_per_day,
     notifyTime: data.notify_time ?? '18:00',
     lastSyncedAt: data.last_synced_at ?? undefined,
+    nickname: data.nickname ?? undefined,
+    university: data.university ?? undefined,
+    faculty: data.faculty ?? undefined,
+    department: data.department ?? undefined,
+    grade: data.grade ?? undefined,
+    avatar: data.avatar ?? undefined,
+    avatarUrl: data.avatar_url ?? undefined,
   }
 }
 
@@ -204,6 +211,13 @@ export async function saveSettingsCloud(s: Settings): Promise<void> {
     minutes_per_day: s.minutesPerDay,
     notify_time: s.notifyTime,
     last_synced_at: s.lastSyncedAt ?? null,
+    nickname: s.nickname ?? null,
+    university: s.university ?? null,
+    faculty: s.faculty ?? null,
+    department: s.department ?? null,
+    grade: s.grade ?? null,
+    avatar: s.avatar ?? null,
+    avatar_url: s.avatarUrl ?? null,
   })
   if (error) throw error
 }

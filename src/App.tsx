@@ -14,6 +14,8 @@ import TaskRow from './TaskRow'
 import CalendarTab from './CalendarTab'
 import MaterialsTab from './MaterialsTab'
 import TimetableTab from './TimetableTab'
+import ProfileForm from './ProfileForm'
+import AvatarIcon from './AvatarIcon'
 import { UNIVERSITIES } from './universities'
 
 // calendar は下タブには出さないサブ画面(「すべて」の📅から開く)
@@ -114,6 +116,7 @@ function Home() {
   const [tab, setTab] = useState<Tab>('today')
   const [syncing, setSyncing] = useState(false)
   const [message, setMessage] = useState('')
+  const [needsProfile, setNeedsProfile] = useState(false)
   const initRan = useRef(false)
 
   const flash = (text: string) => {
@@ -167,9 +170,13 @@ function Home() {
         setSettings(cloudSettings)
         repo.fetchTimetable().then(setSlots).catch(() => {})
 
+        // プロフィール未設定(新規ユーザー・既存ユーザーの初回)なら設定画面を先に出す
+        if (!cloudSettings.nickname) {
+          setNeedsProfile(true)
+        }
         if (!cloudSettings.moodleToken) {
           setTab('settings')
-          flash('ようこそ!まず大学のMoodleと連携しましょう')
+          if (cloudSettings.nickname) flash('ようこそ!まず大学のMoodleと連携しましょう')
         } else {
           const last = cloudSettings.lastSyncedAt ? new Date(cloudSettings.lastSyncedAt).getTime() : 0
           if (Date.now() - last > 10 * 60 * 1000) void performSync(true)
@@ -250,6 +257,37 @@ function Home() {
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center text-gray-400">読み込み中…</div>
+  }
+
+  if (needsProfile) {
+    return (
+      <div className="mx-auto min-h-screen max-w-md bg-gray-50 px-6 py-8">
+        <h1 className="text-center text-xl font-bold text-indigo-600">プロフィールを設定</h1>
+        <p className="mt-1 text-center text-xs text-gray-500">
+          あなたのことを少しだけ教えてください(あとで「その他」からいつでも変更できます)
+        </p>
+        {message && (
+          <div className="mt-3 rounded-lg bg-indigo-100 px-3 py-2 text-sm text-indigo-800">
+            {message}
+          </div>
+        )}
+        <div className="mt-6 rounded-xl bg-white p-4 shadow-sm">
+          <ProfileForm
+            settings={settings}
+            onFlash={flash}
+            submitLabel="はじめる"
+            onSave={async (s) => {
+              await saveSettingsAll(s)
+              setNeedsProfile(false)
+              if (!s.moodleToken) {
+                setTab('settings')
+                flash('プロフィールを保存しました!次は大学のMoodleと連携しましょう')
+              }
+            }}
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -401,7 +439,7 @@ function Home() {
             ['timetable', '🗓️', '時間割'],
             ['all', '📋', 'すべて'],
             ['materials', '📚', '資料'],
-            ['settings', '⚙️', '設定'],
+            ['settings', '⚙️', 'その他'],
           ] as const
         ).map(([key, icon, label]) => (
           <button
@@ -927,9 +965,45 @@ function SettingsTab(props: {
     }
   }
 
+  const [editingProfile, setEditingProfile] = useState(false)
+
   return (
     <main className="px-4 py-4">
-      <h2 className="text-base font-bold text-gray-800">設定</h2>
+      <h2 className="text-base font-bold text-gray-800">その他</h2>
+
+      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <AvatarIcon avatar={settings.avatar} avatarUrl={settings.avatarUrl} size={52} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-bold text-gray-800">
+              {settings.nickname ?? 'ニックネーム未設定'}
+            </p>
+            <p className="truncate text-xs text-gray-500">
+              {[settings.university, settings.faculty, settings.department, settings.grade]
+                .filter(Boolean)
+                .join(' · ') || 'プロフィール未設定'}
+            </p>
+          </div>
+          <button
+            onClick={() => setEditingProfile(!editingProfile)}
+            className="shrink-0 text-xs text-indigo-600 underline"
+          >
+            {editingProfile ? '閉じる' : '編集'}
+          </button>
+        </div>
+        {editingProfile && (
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <ProfileForm
+              settings={settings}
+              onFlash={onFlash}
+              onSave={async (s) => {
+                await onSave(s)
+                setEditingProfile(false)
+              }}
+            />
+          </div>
+        )}
+      </div>
 
       <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
 
