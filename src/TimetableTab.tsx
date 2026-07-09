@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { Task, TimetableSlot } from './types'
 import * as repo from './repo'
 import CourseDetail from './CourseDetail'
@@ -6,29 +6,22 @@ import CourseDetail from './CourseDetail'
 const DAYS = ['月', '火', '水', '木', '金', '土']
 const PERIODS = [1, 2, 3, 4, 5, 6]
 
-/** 時間割タブ: 曜日×時限グリッド。コマをタップすると講義詳細へ */
+/** 時間割タブ: 曜日×時限グリッド。コマをタップすると講義詳細へ。
+ *  時間割データ(slots)は「今日」タブとも共有するため親(Home)が持つ */
 export default function TimetableTab(props: {
   tasks: Task[]
+  slots: TimetableSlot[]
+  onSlotsChange: (slots: TimetableSlot[]) => void
   onToggle: (id: string) => void
   onFlash: (text: string) => void
+  initialCourse?: string | null
 }) {
-  const { tasks, onToggle, onFlash } = props
-  const [slots, setSlots] = useState<TimetableSlot[]>([])
-  const [loading, setLoading] = useState(true)
+  const { tasks, slots, onSlotsChange, onToggle, onFlash, initialCourse } = props
   const [editMode, setEditMode] = useState(false)
   const [adding, setAdding] = useState<{ day: number; period: number } | null>(null)
   const [course, setCourse] = useState('')
   const [room, setRoom] = useState('')
-  const [selectedCourse, setSelectedCourse] = useState<string | null>(null)
-
-  useEffect(() => {
-    repo
-      .fetchTimetable()
-      .then(setSlots)
-      .catch(() => onFlash('時間割の読み込みに失敗しました'))
-      .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const [selectedCourse, setSelectedCourse] = useState<string | null>(initialCourse ?? null)
 
   // 講義名の候補: Moodleの課題から取れた講義名 + 既存の時間割
   const knownCourses = useMemo(() => {
@@ -51,7 +44,7 @@ export default function TimetableTab(props: {
     const slot = slotAt(day, period)
     if (editMode) {
       if (slot && window.confirm(`「${slot.course}」を時間割から外しますか?`)) {
-        setSlots((ss) => ss.filter((s) => s.id !== slot.id))
+        onSlotsChange(slots.filter((s) => s.id !== slot.id))
         repo.deleteTimetableSlot(slot.id).catch(() => onFlash('削除に失敗しました'))
       }
       return
@@ -69,7 +62,10 @@ export default function TimetableTab(props: {
     if (!adding || !course.trim()) return
     try {
       const created = await repo.addTimetableSlot(adding.day, adding.period, course.trim(), room.trim() || undefined)
-      setSlots((ss) => [...ss.filter((s) => !(s.day === created.day && s.period === created.period)), created])
+      onSlotsChange([
+        ...slots.filter((s) => !(s.day === created.day && s.period === created.period)),
+        created,
+      ])
       setAdding(null)
     } catch {
       onFlash('登録に失敗しました')
@@ -105,9 +101,7 @@ export default function TimetableTab(props: {
         <p className="mt-1 px-1 text-xs text-red-500">削除したいコマをタップしてください</p>
       )}
 
-      {loading ? (
-        <p className="mt-6 text-center text-sm text-gray-400">読み込み中…</p>
-      ) : (
+      {(
         <div className="mt-3 grid grid-cols-[1.2rem_repeat(6,1fr)] gap-1">
           <div />
           {DAYS.map((d, i) => (

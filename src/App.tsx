@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Settings, Task } from './types'
+import type { Settings, Task, TimetableSlot } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
 import * as repo from './repo'
@@ -109,6 +109,7 @@ function NewPasswordScreen(props: { onDone: () => void }) {
 function Home() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [slots, setSlots] = useState<TimetableSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('today')
   const [syncing, setSyncing] = useState(false)
@@ -164,6 +165,7 @@ function Home() {
         }
         setTasks(cloudTasks)
         setSettings(cloudSettings)
+        repo.fetchTimetable().then(setSlots).catch(() => {})
 
         if (!cloudSettings.moodleToken) {
           setTab('settings')
@@ -299,6 +301,32 @@ function Home() {
             </p>
           </div>
 
+          {(() => {
+            // 今日の授業(day: 0=月〜5=土。日曜は表示なし)
+            const jsDay = today.getDay()
+            const todayIdx = jsDay === 0 ? -1 : jsDay - 1
+            const todayClasses = slots
+              .filter((s) => s.day === todayIdx)
+              .sort((a, b) => a.period - b.period)
+            if (todayClasses.length === 0) return null
+            return (
+              <button
+                onClick={() => setTab('timetable')}
+                className="mt-3 w-full rounded-xl bg-white p-3 text-left shadow-sm"
+              >
+                <p className="text-xs font-bold text-gray-500">🗓️ 今日の授業</p>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                  {todayClasses.map((s) => (
+                    <span key={s.id} className="text-sm text-gray-800">
+                      <span className="font-medium text-indigo-600">{s.period}限</span> {s.course}
+                      {s.room && <span className="text-xs text-gray-400"> @{s.room}</span>}
+                    </span>
+                  ))}
+                </div>
+              </button>
+            )
+          })()}
+
           <h2 className="mt-4 text-base font-bold text-gray-800">
             {today.getMonth() + 1}月{today.getDate()}日({WEEKDAY_JA[today.getDay()]}) 今日やること
           </h2>
@@ -328,7 +356,13 @@ function Home() {
       )}
 
       {tab === 'timetable' && (
-        <TimetableTab tasks={tasks} onToggle={toggleDone} onFlash={flash} />
+        <TimetableTab
+          tasks={tasks}
+          slots={slots}
+          onSlotsChange={setSlots}
+          onToggle={toggleDone}
+          onFlash={flash}
+        />
       )}
 
       {tab === 'all' && (
