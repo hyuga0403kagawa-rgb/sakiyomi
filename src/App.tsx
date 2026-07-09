@@ -243,7 +243,7 @@ function Home() {
       <header className="sticky top-0 z-10 bg-indigo-600 px-4 py-3 text-white shadow">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold">
-            サキヨミ <span className="text-xs font-normal opacity-70">(仮)</span>
+            UniPort
           </h1>
           <span className="text-[11px] opacity-80">
             {syncing
@@ -805,7 +805,7 @@ function SettingsTab(props: {
         </button>
         <p className="mt-2 text-xs text-gray-400">
           iPhoneの場合は、先にSafariの共有ボタンから「ホーム画面に追加」し、
-          ホーム画面のサキヨミを開いてからこのボタンを押してください
+          ホーム画面のUniPortを開いてからこのボタンを押してください
         </p>
       </div>
 

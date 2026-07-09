@@ -110,9 +110,9 @@ export default function AuthScreen() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center bg-gray-50 px-6">
-      <h1 className="text-center text-2xl font-bold text-indigo-600">サキヨミ (仮)</h1>
+      <h1 className="text-center text-2xl font-bold text-indigo-600">UniPort</h1>
       <p className="mt-1 text-center text-sm text-gray-500">
-        課題を先読みして、今日やる分だけ教えてくれる
+        大学とつながる、課題ぜんぶ先読みアプリ
       </p>
 
       <div className="mt-8 space-y-3 rounded-xl bg-white p-4 shadow-sm">

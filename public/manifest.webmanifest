@@ -1,7 +1,7 @@
 {
-  "name": "サキヨミ",
-  "short_name": "サキヨミ",
-  "description": "課題を先読みして、今日やる分だけ教えてくれる",
+  "name": "UniPort",
+  "short_name": "UniPort",
+  "description": "大学のMoodleとつないで、課題を先読み。今日やる分だけ教えてくれる",
   "lang": "ja",
   "start_url": "/sakiyomi/",
   "scope": "/sakiyomi/",
