@@ -154,22 +154,19 @@ function SummaryWidget(props: {
   const Row = (p: { icon: string; label: string; main: string; sub?: string; urgent?: boolean }) => (
     <div className="flex items-center gap-2">
       <span className="text-sm">{p.icon}</span>
-      <span className="w-9 shrink-0 text-[10px] text-white/60">{p.label}</span>
-      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-white">{p.main}</span>
+      <span className="w-8 shrink-0 text-[10px] text-gray-400">{p.label}</span>
+      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-800">{p.main}</span>
       {p.sub && (
-        <span className={`shrink-0 text-[11px] font-bold ${p.urgent ? 'text-rose-300' : 'text-white/70'}`}>
+        <span className={`shrink-0 text-[11px] font-bold ${p.urgent ? 'text-red-500' : 'text-gray-400'}`}>
           {p.sub}
         </span>
       )}
     </div>
   )
   return (
-    <div className="mx-auto max-w-xs rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 p-3 shadow-lg">
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-bold text-white/90">UniPort</span>
-        <span className="text-[9px] text-white/50">今日</span>
-      </div>
-      <div className="mt-2 space-y-1.5">
+    <div className="mx-auto max-w-xs rounded-2xl bg-white p-3 shadow-lg">
+      <p className="text-[11px] font-bold text-indigo-500">今日のまとめ</p>
+      <div className="mt-2 space-y-2">
         <Row
           icon="📚"
           label="授業"
