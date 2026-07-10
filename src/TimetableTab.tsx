@@ -7,6 +7,20 @@ import CourseDetail from './CourseDetail'
 const DAYS = ['月', '火', '水', '木', '金', '土']
 const PERIODS = [1, 2, 3, 4, 5, 6]
 
+// ローマ数字(Ⅰ〜Ⅹ)・全角英数字を正規化してから検索する。
+// 「電気回路Ⅰ」のような講義名は「電気回路1」と入力しても文字コードが違うためヒットしない問題への対応
+const ROMAN_TO_DIGIT: Record<string, string> = {
+  Ⅰ: '1', Ⅱ: '2', Ⅲ: '3', Ⅳ: '4', Ⅴ: '5', Ⅵ: '6', Ⅶ: '7', Ⅷ: '8', Ⅸ: '9', Ⅹ: '10',
+  ⅰ: '1', ⅱ: '2', ⅲ: '3', ⅳ: '4', ⅴ: '5', ⅵ: '6', ⅶ: '7', ⅷ: '8', ⅸ: '9', ⅹ: '10',
+}
+function normalizeForSearch(s: string): string {
+  let out = ''
+  for (const ch of s) out += ROMAN_TO_DIGIT[ch] ?? ch
+  return out
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .toLowerCase()
+}
+
 /** 時間割タブ: 曜日×時限グリッド。コマをタップすると講義詳細へ。
  *  時間割データ(slots)は「今日」タブとも共有するため親(Home)が持つ */
 export default function TimetableTab(props: {
@@ -228,13 +242,14 @@ export default function TimetableTab(props: {
               className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
             />
           {(() => {
-            // 部分一致で候補を出す(「Web入門」→「Web入門 2026」がヒット)
-            const q = course.trim().toLowerCase()
+            // 部分一致で候補を出す(「Web入門」→「Web入門 2026」がヒット、
+            // 「電気回路1」→「電気回路Ⅰ」のようにローマ数字/全角数字の表記違いもヒット)
+            const q = normalizeForSearch(course.trim())
             const suggestions = knownCourses
-              .filter((c) => c !== course && (!q || c.toLowerCase().includes(q)))
+              .filter((c) => c !== course && (!q || normalizeForSearch(c).includes(q)))
               .slice(0, 6)
             const excludedMatches = showExcluded
-              ? hiddenCourses.filter((c) => c !== course && (!q || c.toLowerCase().includes(q)))
+              ? hiddenCourses.filter((c) => c !== course && (!q || normalizeForSearch(c).includes(q)))
               : []
             if (suggestions.length === 0 && excludedMatches.length === 0) return null
             return (
