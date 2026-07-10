@@ -117,7 +117,8 @@ function Home() {
   const [tab, setTab] = useState<Tab>('today')
   const [syncing, setSyncing] = useState(false)
   const [message, setMessage] = useState('')
-  const [needsProfile, setNeedsProfile] = useState(false)
+  // 初回の案内ステップ。'profile'→'moodle'→null(通常画面)の順に進む
+  const [onboardStep, setOnboardStep] = useState<null | 'profile' | 'moodle'>(null)
   const initRan = useRef(false)
 
   const flash = (text: string) => {
@@ -171,13 +172,12 @@ function Home() {
         setSettings(cloudSettings)
         repo.fetchTimetable().then(setSlots).catch(() => {})
 
-        // プロフィール未設定(新規ユーザー・既存ユーザーの初回)なら設定画面を先に出す
+        // 初回案内: プロフィール未設定ならプロフィールから、設定済みでMoodle未連携なら
+        // 連携案内から順に出す。両方済みなら通常どおり自動同期する。
         if (!cloudSettings.nickname) {
-          setNeedsProfile(true)
-        }
-        if (!cloudSettings.moodleToken) {
-          setTab('settings')
-          if (cloudSettings.nickname) flash('ようこそ!まず大学のMoodleと連携しましょう')
+          setOnboardStep('profile')
+        } else if (!cloudSettings.moodleToken) {
+          setOnboardStep('moodle')
         } else {
           const last = cloudSettings.lastSyncedAt ? new Date(cloudSettings.lastSyncedAt).getTime() : 0
           if (Date.now() - last > 10 * 60 * 1000) void performSync(true)
@@ -249,6 +249,7 @@ function Home() {
 
   const handleConnect = async (moodleUrl: string, username: string, password: string) => {
     await connectMoodle(moodleUrl, username, password)
+    setOnboardStep(null) // 初回案内の途中なら通常画面へ抜ける
     flash('✅ 連携しました!課題を取得しています…')
     await performSync()
     setTab('today')
@@ -260,10 +261,11 @@ function Home() {
     return <div className="flex min-h-screen items-center justify-center text-gray-400">読み込み中…</div>
   }
 
-  if (needsProfile) {
+  if (onboardStep === 'profile') {
     return (
       <div className="mx-auto min-h-screen max-w-md bg-gray-50 px-6 py-8">
-        <h1 className="text-center text-xl font-bold text-indigo-600">プロフィールを設定</h1>
+        <p className="text-center text-xs font-bold text-indigo-400">ステップ 1 / 2</p>
+        <h1 className="mt-1 text-center text-xl font-bold text-indigo-600">プロフィールを設定</h1>
         <p className="mt-1 text-center text-xs text-gray-500">
           あなたのことを少しだけ教えてください(あとで「その他」からいつでも変更できます)
         </p>
@@ -276,17 +278,53 @@ function Home() {
           <ProfileForm
             settings={settings}
             onFlash={flash}
-            submitLabel="はじめる"
+            submitLabel="次へ進む"
             onSave={async (s) => {
               await saveSettingsAll(s)
-              setNeedsProfile(false)
               if (!s.moodleToken) {
-                setTab('settings')
-                flash('プロフィールを保存しました!次は大学のMoodleと連携しましょう')
+                setOnboardStep('moodle')
+              } else {
+                setOnboardStep(null)
               }
             }}
           />
         </div>
+      </div>
+    )
+  }
+
+  if (onboardStep === 'moodle') {
+    return (
+      <div className="mx-auto min-h-screen max-w-md bg-gray-50 px-6 py-8">
+        <p className="text-center text-xs font-bold text-indigo-400">ステップ 2 / 2</p>
+        <h1 className="mt-1 text-center text-xl font-bold text-indigo-600">課題を自動で読み込む</h1>
+        <p className="mt-1 text-center text-xs text-gray-500">
+          大学のMoodleにログインするIDとパスワードを入れるだけ。
+          <br />
+          パスワードは保存されないので安心してください。
+        </p>
+        {message && (
+          <div className="mt-3 rounded-lg bg-indigo-100 px-3 py-2 text-sm text-indigo-800">
+            {message}
+          </div>
+        )}
+        <MoodleConnectCard
+          settings={settings}
+          onConnect={handleConnect}
+          onSave={async (s) => {
+            await saveSettingsAll(s)
+            if (s.moodleToken) setOnboardStep(null) // トークン直接登録でも通常画面へ抜ける
+          }}
+        />
+        <button
+          onClick={() => {
+            setOnboardStep(null)
+            flash('あとで「その他」タブからいつでも連携できます')
+          }}
+          className="mt-4 w-full py-2 text-xs text-gray-500 underline"
+        >
+          あとで設定する(スキップ)
+        </button>
       </div>
     )
   }
@@ -830,7 +868,7 @@ function MoodleConnectCard(props: {
                 </option>
               ))}
             </select>
-            <span className="mt-1 block text-xs text-gray-400">
+            <span className="mt-1 block text-xs text-gray-500">
               ※SSO(学認・Microsoftログイン等)専用の大学では連携できない場合があります
             </span>
           </label>
@@ -866,7 +904,7 @@ function MoodleConnectCard(props: {
               autoComplete="off"
               className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
             />
-            <span className="mt-1 block text-xs text-gray-400">
+            <span className="mt-1 block text-xs text-gray-500">
               パスワードは保存されません。Moodle公式アプリと同じ仕組みで「合鍵(トークン)」に
               交換され、以後はトークンだけで同期します
             </span>
@@ -1039,7 +1077,7 @@ function SettingsTab(props: {
             onChange={(e) => setNotifyTime(e.target.value)}
             className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
           />
-          <span className="mt-1 block text-xs text-gray-400">
+          <span className="mt-1 block text-xs text-gray-500">
             毎日この時刻に、未提出課題のまとめをプッシュ通知します
           </span>
         </label>
@@ -1057,7 +1095,7 @@ function SettingsTab(props: {
         >
           🔔 この端末で通知を受け取る
         </button>
-        <p className="mt-2 text-xs text-gray-400">
+        <p className="mt-2 text-xs text-gray-500">
           iPhoneの場合は、先にSafariの共有ボタンから「ホーム画面に追加」し、
           ホーム画面のUniPortを開いてからこのボタンを押してください
         </p>
