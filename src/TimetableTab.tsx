@@ -6,6 +6,10 @@ import CourseDetail from './CourseDetail'
 
 const DAYS = ['月', '火', '水', '木', '金', '土']
 const PERIODS = [1, 2, 3, 4, 5, 6]
+// オンデマンド講義は曜日・時限を持たないため、day に専用の値(グリッド外)を割り当てて
+// timetable_slots テーブル(day, period のユニーク制約)をそのまま流用する。
+// period はオンデマンド講義同士の登録順(1, 2, 3...)として使う
+const ON_DEMAND_DAY = 6
 
 // ローマ数字(Ⅰ〜Ⅹ)・全角英数字を正規化してから検索する。
 // 「電気回路Ⅰ」のような講義名は「電気回路1」と入力しても文字コードが違うためヒットしない問題への対応
@@ -89,6 +93,11 @@ export default function TimetableTab(props: {
   const slotAt = (day: number, period: number) =>
     slots.find((s) => s.day === day && s.period === period)
 
+  const onDemandSlots = useMemo(
+    () => slots.filter((s) => s.day === ON_DEMAND_DAY).sort((a, b) => a.period - b.period),
+    [slots],
+  )
+
   // 未提出課題がある講義に赤ドットを出す
   const pendingCourses = useMemo(
     () => new Set(tasks.filter((t) => !t.done && t.course).map((t) => t.course!)),
@@ -111,6 +120,26 @@ export default function TimetableTab(props: {
       setCourse('')
       setRoom('')
     }
+  }
+
+  const handleOnDemandTap = (slot: TimetableSlot) => {
+    if (editMode) {
+      if (window.confirm(`「${slot.course}」をオンデマンドから外しますか?`)) {
+        onSlotsChange(slots.filter((s) => s.id !== slot.id))
+        repo.deleteTimetableSlot(slot.id).catch(() => onFlash('削除に失敗しました'))
+      }
+      return
+    }
+    setSelectedCourse(slot.course)
+  }
+
+  const startAddOnDemand = () => {
+    const nextPeriod = onDemandSlots.length
+      ? Math.max(...onDemandSlots.map((s) => s.period)) + 1
+      : 1
+    setAdding({ day: ON_DEMAND_DAY, period: nextPeriod })
+    setCourse('')
+    setRoom('')
   }
 
   const addSlot = async () => {
@@ -213,9 +242,36 @@ export default function TimetableTab(props: {
         </div>
       )}
 
+      <div className="mt-4 px-1">
+        <h3 className="text-xs font-bold text-gray-500">🖥️ オンデマンド</h3>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {onDemandSlots.map((slot) => (
+            <button
+              key={slot.id}
+              onClick={() => handleOnDemandTap(slot)}
+              className={`relative rounded-lg px-2.5 py-1.5 text-left text-xs ${
+                editMode ? 'border border-red-200 bg-red-50 text-red-700' : 'bg-indigo-50 text-indigo-800'
+              }`}
+            >
+              {pendingCourses.has(slot.course) && (
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
+              )}
+              {slot.course}
+              {slot.room && <span className="ml-1 text-[10px] text-indigo-400">({slot.room})</span>}
+            </button>
+          ))}
+          <button
+            onClick={startAddOnDemand}
+            className="rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-xs text-gray-400"
+          >
+            + 追加
+          </button>
+        </div>
+      </div>
+
       <p className="mt-2 px-1 text-[11px] text-gray-400">
-        空きコマの「+」で講義を登録。講義をタップすると課題・資料・出席・成績見込みが見られます。
-        赤い点は未提出の課題がある講義です。
+        空きコマの「+」で講義を登録。オンデマンド(曜日・時限が決まっていない講義)は下の欄から追加できます。
+        講義をタップすると課題・資料・出席・成績見込みが見られます。赤い点は未提出の課題がある講義です。
       </p>
 
       {adding && (
@@ -229,9 +285,15 @@ export default function TimetableTab(props: {
           >
             <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
             <h3 className="text-center text-sm font-bold text-gray-800">
-              <span className="mr-1 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-700">
-                {DAYS[adding.day]}曜 {adding.period}限
-              </span>
+              {adding.day === ON_DEMAND_DAY ? (
+                <span className="mr-1 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-700">
+                  🖥️ オンデマンド
+                </span>
+              ) : (
+                <span className="mr-1 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-700">
+                  {DAYS[adding.day]}曜 {adding.period}限
+                </span>
+              )}
               に授業を追加
             </h3>
             <input
@@ -292,7 +354,7 @@ export default function TimetableTab(props: {
           <input
             value={room}
             onChange={(e) => setRoom(e.target.value)}
-            placeholder="教室(任意)"
+            placeholder={adding.day === ON_DEMAND_DAY ? '配信サイト等のメモ(任意)' : '教室(任意)'}
             className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
           />
           <p className="mt-1 text-[11px] text-gray-400">
