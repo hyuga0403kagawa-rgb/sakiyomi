@@ -8,6 +8,7 @@ import { loadSettings as loadLocalSettings, loadTasks as loadLocalTasks } from '
 import { connectMoodle, syncMoodleViaServer } from './moodle'
 import { buildTodayPlan } from './planner'
 import { buildRecommendation } from './recommend'
+import { defaultSemester } from './semester'
 import { WEEKDAY_JA, fmtMinutes, fmtTime } from './format'
 import AuthScreen from './AuthScreen'
 import TaskRow from './TaskRow'
@@ -392,7 +393,7 @@ function Home() {
             // 今日の授業(day: 0=月〜5=土, 7=日)。現在の学期のコマのみ表示
             const jsDay = today.getDay()
             const todayIdx = jsDay === 0 ? 7 : jsDay - 1
-            const curSemester = settings.currentSemester ?? '前期'
+            const curSemester = settings.currentSemester ?? defaultSemester()
             const todayClasses = slots
               .filter((s) => s.day === todayIdx && s.semester === curSemester)
               .sort((a, b) => a.period - b.period)

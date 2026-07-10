@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { Settings, Task, TimetableDays, TimetableSlot } from './types'
-import { SEMESTER_OPTIONS } from './types'
 import * as repo from './repo'
 import { fetchCourses } from './materials'
+import { defaultSemester, semesterOptions } from './semester'
 import CourseDetail from './CourseDetail'
 
 const PERIODS = [1, 2, 3, 4, 5, 6]
@@ -62,8 +62,13 @@ export default function TimetableTab(props: {
 }) {
   const { tasks, slots, onSlotsChange, onToggle, onFlash, settings, onSaveSettings, initialCourse } = props
   const timetableDays = settings.timetableDays ?? 'sat'
-  const semester = settings.currentSemester ?? '前期'
+  const semester = settings.currentSemester ?? defaultSemester()
   const dayDefs = visibleDayDefs(timetableDays)
+  // 学期の選択肢は「今の年度±1 × 前期/後期」を自動生成。既存データにある学期も含める
+  const semesterChoices = useMemo(
+    () => semesterOptions(semester, slots.map((s) => s.semester)),
+    [semester, slots],
+  )
   const [editMode, setEditMode] = useState(false)
   const [adding, setAdding] = useState<{ day: number; period: number } | null>(null)
   const [course, setCourse] = useState('')
@@ -230,7 +235,7 @@ export default function TimetableTab(props: {
           onChange={(e) => onSaveSettings({ ...settings, currentSemester: e.target.value })}
           className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm font-medium text-gray-700"
         >
-          {SEMESTER_OPTIONS.map((s) => (
+          {semesterChoices.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
@@ -344,8 +349,8 @@ export default function TimetableTab(props: {
       </div>
 
       <p className="mt-2 px-1 text-[11px] text-gray-400">
-        上の学期を切り替えると、学期ごとに別の時間割を登録できます(コマは消えません)。
-        空きコマの「+」で講義を登録。オンデマンド(曜日・時限が決まっていない講義)は下の欄から追加できます。
+        学期(年度+前期/後期)を切り替えると別の時間割を登録できます。今の年度・学期は自動で選ばれ、
+        新しい年度も自動で候補に出ます。空きコマの「+」で講義を登録、オンデマンドは下の欄から。
         講義をタップすると課題・資料・出席・成績見込みが見られます。赤い点は未提出の課題がある講義です。
       </p>
 

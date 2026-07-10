@@ -47,22 +47,8 @@ export const DEFAULT_SETTINGS: Settings = {
   minutesPerDay: 120,
   notifyTime: '18:00',
   timetableDays: 'sat',
-  currentSemester: '前期',
+  // currentSemester は未設定なら「今日の年度・学期」を自動採用する(semester.ts)
 }
-
-/** 学期の選択肢(いろんな大学の呼び方に対応) */
-export const SEMESTER_OPTIONS = [
-  '前期',
-  '後期',
-  '春学期',
-  '秋学期',
-  '1Q',
-  '2Q',
-  '3Q',
-  '4Q',
-  '通年',
-  '集中',
-] as const
 
 /** 時間割の1コマ(day: 0=月〜5=土, 6=オンデマンド, 7=日) */
 export interface TimetableSlot {
