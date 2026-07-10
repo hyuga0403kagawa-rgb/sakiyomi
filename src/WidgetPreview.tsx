@@ -6,50 +6,37 @@ import { colorClass } from './courseColors'
 import { PERIOD_TIMES } from './periods'
 import { ON_DEMAND_DAY, todayDayValue, visibleDayDefs } from './timetableDays'
 import { defaultSemester, parseSemester } from './semester'
+import TaskRow from './TaskRow'
 
 type WidgetKind = 'todo' | 'today' | 'week' | 'summary'
 const KINDS: { key: WidgetKind; label: string }[] = [
-  { key: 'todo', label: 'やること' },
+  { key: 'todo', label: 'タスク' },
   { key: 'today', label: '今日の時間割' },
   { key: 'week', label: '週間の時間割' },
   { key: 'summary', label: 'まとめ' },
 ]
 
-function fmtDue(due?: string): string {
-  if (!due) return ''
-  const d = new Date(due)
-  return `${d.getMonth() + 1}月${d.getDate()}日`
-}
-
-/** チェックボックスで完了できる「やること」ウィジェット */
-function TodoWidget(props: { tasks: Task[]; onToggle: (id: string) => void }) {
+/** チェックボックスで完了できる「タスク」ウィジェット(「すべて」タブと同じ表示) */
+function TaskWidget(props: { tasks: Task[]; onToggle: (id: string) => void }) {
   const active = props.tasks
     .filter((t) => !t.done)
     .sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'))
   return (
-    <div className="mx-auto max-w-xs rounded-2xl bg-neutral-800 p-3 shadow-lg">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-teal-300">
-          やること <span className="text-white/60">{active.length}</span>
+    <div className="mx-auto max-w-xs rounded-2xl bg-gray-100 p-3 shadow-lg">
+      <div className="mb-2 flex items-center justify-between px-0.5">
+        <span className="text-sm font-bold text-gray-800">
+          📋 タスク <span className="text-gray-400">{active.length}</span>
         </span>
-        <span className="text-lg text-white/40">+</span>
       </div>
-      <ul className="mt-2 space-y-2">
-        {active.slice(0, 6).map((t) => (
-          <li key={t.id} className="flex items-center gap-2">
-            <button
-              onClick={() => props.onToggle(t.id)}
-              aria-label="完了にする"
-              className="h-4 w-4 shrink-0 rounded-full border border-white/40"
-            />
-            <span className="min-w-0 flex-1 truncate text-[13px] text-white">{t.title}</span>
-            {t.due && <span className="shrink-0 text-[11px] text-white/40">{fmtDue(t.due)}</span>}
-          </li>
-        ))}
-        {active.length === 0 && (
-          <li className="py-4 text-center text-xs text-white/40">やることはありません 🎉</li>
-        )}
-      </ul>
+      {active.length === 0 ? (
+        <p className="py-4 text-center text-xs text-gray-400">未提出のタスクはありません 🎉</p>
+      ) : (
+        <ul className="space-y-2">
+          {active.slice(0, 4).map((t) => (
+            <TaskRow key={t.id} task={t} onToggle={props.onToggle} />
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -231,7 +218,7 @@ export default function WidgetPreview(props: {
   const widget = useMemo(() => {
     switch (kind) {
       case 'todo':
-        return <TodoWidget tasks={tasks} onToggle={onToggle} />
+        return <TaskWidget tasks={tasks} onToggle={onToggle} />
       case 'today':
         return <TodayWidget slots={slots} settings={settings} colors={colors} />
       case 'week':

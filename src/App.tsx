@@ -1137,7 +1137,7 @@ function SettingsTab(props: {
           </span>
         </div>
         <p className="mt-1 text-xs text-violet-700">
-          ホーム画面ウィジェットで、やること・時間割がひと目で。下のボタンで種類を切り替えられます。
+          ホーム画面ウィジェットで、タスク・時間割がひと目で。下のボタンで種類を切り替えられます。
         </p>
         <WidgetPreview tasks={tasks} slots={slots} settings={settings} onToggle={onToggle} />
         <p className="mt-3 text-[11px] text-violet-500">
