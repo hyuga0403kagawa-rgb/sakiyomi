@@ -245,9 +245,12 @@ export default function TimetableTab(props: {
             // 部分一致で候補を出す(「Web入門」→「Web入門 2026」がヒット、
             // 「電気回路1」→「電気回路Ⅰ」のようにローマ数字/全角数字の表記違いもヒット)
             const q = normalizeForSearch(course.trim())
-            const suggestions = knownCourses
-              .filter((c) => c !== course && (!q || normalizeForSearch(c).includes(q)))
-              .slice(0, 6)
+            // 何も入力していない時は全件表示(登録講義を全部候補に出したいという要望のため)。
+            // 入力して絞り込んでいる時だけ6件に抑えて見やすくする
+            const matched = knownCourses.filter(
+              (c) => c !== course && (!q || normalizeForSearch(c).includes(q)),
+            )
+            const suggestions = q ? matched.slice(0, 6) : matched
             const excludedMatches = showExcluded
               ? hiddenCourses.filter((c) => c !== course && (!q || normalizeForSearch(c).includes(q)))
               : []
