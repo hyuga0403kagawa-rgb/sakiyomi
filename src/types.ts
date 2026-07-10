@@ -69,3 +69,41 @@ export interface AttendanceRecord {
   date: string
   status: AttendanceStatus
 }
+
+/** 就活: エントリー締切 */
+export interface JobEntry {
+  id: string
+  company: string
+  entryType: string
+  deadline?: string
+  memo?: string
+  done: boolean
+}
+
+/** 就活: 学生側プロフィール(マッチング用) */
+export interface JobProfile {
+  interests?: string
+  location?: string
+  industries?: string
+  jobType?: string
+  startPeriod?: string
+}
+
+/** 就活: 企業情報。isSponsored=trueは有料掲載(PR枠)で、
+ *  AIおすすめ枠には絶対に混ぜない(景表法ステマ規制対応) */
+export interface Company {
+  id: string
+  name: string
+  industry?: string
+  location?: string
+  startingSalary?: string
+  avgSalary?: string
+  employees?: string
+  benefits?: string
+  positions?: string
+  internInfo?: string
+  seminarInfo?: string
+  website?: string
+  isSponsored: boolean
+  matchTags?: string
+}

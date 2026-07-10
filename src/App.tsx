@@ -12,14 +12,15 @@ import { WEEKDAY_JA, fmtMinutes, fmtTime } from './format'
 import AuthScreen from './AuthScreen'
 import TaskRow from './TaskRow'
 import CalendarTab from './CalendarTab'
-import MaterialsTab from './MaterialsTab'
 import TimetableTab from './TimetableTab'
+import JobTab from './JobTab'
 import ProfileForm from './ProfileForm'
 import AvatarIcon from './AvatarIcon'
 import { UNIVERSITIES } from './universities'
 
 // calendar は下タブには出さないサブ画面(「すべて」の📅から開く)
-type Tab = 'today' | 'timetable' | 'all' | 'calendar' | 'materials' | 'settings'
+// 講義資料は時間割→講義詳細に統合済み(旧・資料タブは就活タブに置き換え)
+type Tab = 'today' | 'timetable' | 'all' | 'calendar' | 'job' | 'settings'
 type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 
 export default function App() {
@@ -421,7 +422,7 @@ function Home() {
         <CalendarTab tasks={tasks} onToggle={toggleDone} onBack={() => setTab('all')} />
       )}
 
-      {tab === 'materials' && <MaterialsTab />}
+      {tab === 'job' && <JobTab onFlash={flash} />}
 
       {tab === 'settings' && (
         <SettingsTab
@@ -438,7 +439,7 @@ function Home() {
             ['today', '🏠', '今日'],
             ['timetable', '🗓️', '時間割'],
             ['all', '📋', 'すべて'],
-            ['materials', '📚', '資料'],
+            ['job', '💼', '就活'],
             ['settings', '⚙️', 'その他'],
           ] as const
         ).map(([key, icon, label]) => (

@@ -2,7 +2,10 @@ import { supabase } from './supabase'
 import type {
   AttendanceRecord,
   AttendanceStatus,
+  Company,
   CourseInfo,
+  JobEntry,
+  JobProfile,
   Settings,
   Task,
   TaskSource,
@@ -178,6 +181,107 @@ export async function addAttendance(
 export async function deleteAttendance(id: string): Promise<void> {
   const { error } = await supabase.from('attendance_records').delete().eq('id', id)
   if (error) throw error
+}
+
+// ---------- 就活: エントリー締切 ----------
+
+export async function fetchJobEntries(): Promise<JobEntry[]> {
+  const { data, error } = await supabase.from('job_entries').select('*')
+  if (error) throw error
+  return data.map((r) => ({
+    id: r.id,
+    company: r.company,
+    entryType: r.entry_type,
+    deadline: r.deadline ?? undefined,
+    memo: r.memo ?? undefined,
+    done: r.done,
+  }))
+}
+
+export async function addJobEntry(e: Omit<JobEntry, 'id' | 'done'>): Promise<JobEntry> {
+  const { data, error } = await supabase
+    .from('job_entries')
+    .insert({
+      company: e.company,
+      entry_type: e.entryType,
+      deadline: e.deadline ?? null,
+      memo: e.memo ?? null,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return {
+    id: data.id,
+    company: data.company,
+    entryType: data.entry_type,
+    deadline: data.deadline ?? undefined,
+    memo: data.memo ?? undefined,
+    done: data.done,
+  }
+}
+
+export async function updateJobEntryDone(id: string, done: boolean): Promise<void> {
+  const { error } = await supabase.from('job_entries').update({ done }).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteJobEntry(id: string): Promise<void> {
+  const { error } = await supabase.from('job_entries').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- 就活: プロフィール ----------
+
+export async function fetchJobProfile(): Promise<JobProfile | null> {
+  const { data, error } = await supabase.from('job_profile').select('*').maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  return {
+    interests: data.interests ?? undefined,
+    location: data.location ?? undefined,
+    industries: data.industries ?? undefined,
+    jobType: data.job_type ?? undefined,
+    startPeriod: data.start_period ?? undefined,
+  }
+}
+
+export async function upsertJobProfile(p: JobProfile): Promise<void> {
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+  if (!userId) throw new Error('ログインしていません')
+  const { error } = await supabase.from('job_profile').upsert({
+    user_id: userId,
+    interests: p.interests ?? null,
+    location: p.location ?? null,
+    industries: p.industries ?? null,
+    job_type: p.jobType ?? null,
+    start_period: p.startPeriod ?? null,
+    updated_at: new Date().toISOString(),
+  })
+  if (error) throw error
+}
+
+// ---------- 就活: 企業情報 ----------
+
+export async function fetchCompanies(): Promise<Company[]> {
+  const { data, error } = await supabase.from('companies').select('*')
+  if (error) throw error
+  return data.map((r) => ({
+    id: r.id,
+    name: r.name,
+    industry: r.industry ?? undefined,
+    location: r.location ?? undefined,
+    startingSalary: r.starting_salary ?? undefined,
+    avgSalary: r.avg_salary ?? undefined,
+    employees: r.employees ?? undefined,
+    benefits: r.benefits ?? undefined,
+    positions: r.positions ?? undefined,
+    internInfo: r.intern_info ?? undefined,
+    seminarInfo: r.seminar_info ?? undefined,
+    website: r.website ?? undefined,
+    isSponsored: r.is_sponsored,
+    matchTags: r.match_tags ?? undefined,
+  }))
 }
 
 export async function fetchSettings(): Promise<Settings> {
