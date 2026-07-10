@@ -32,22 +32,47 @@ export interface Settings {
   /** 'icon:1'〜'icon:5' または 'photo' */
   avatar?: string
   avatarUrl?: string
+  /** 時間割に表示する曜日の範囲 */
+  timetableDays?: TimetableDays
+  /** 現在表示している学期(時間割の切り替え単位) */
+  currentSemester?: string
 }
+
+/** 時間割の表示曜日: 平日のみ / 平日+土 / 平日+土日 */
+export type TimetableDays = 'weekday' | 'sat' | 'satsun'
 
 export const DEFAULT_SETTINGS: Settings = {
   moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp',
   moodleToken: '',
   minutesPerDay: 120,
   notifyTime: '18:00',
+  timetableDays: 'sat',
+  currentSemester: '前期',
 }
 
-/** 時間割の1コマ(day: 0=月〜5=土, period: 1〜6限) */
+/** 学期の選択肢(いろんな大学の呼び方に対応) */
+export const SEMESTER_OPTIONS = [
+  '前期',
+  '後期',
+  '春学期',
+  '秋学期',
+  '1Q',
+  '2Q',
+  '3Q',
+  '4Q',
+  '通年',
+  '集中',
+] as const
+
+/** 時間割の1コマ(day: 0=月〜5=土, 6=オンデマンド, 7=日) */
 export interface TimetableSlot {
   id: string
   day: number
   period: number
   course: string
   room?: string
+  /** 所属する学期。既存データは '前期' */
+  semester: string
 }
 
 /** 講義ごとの情報(シラバスから読み取った評価割合など) */

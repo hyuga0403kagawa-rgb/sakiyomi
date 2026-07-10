@@ -247,6 +247,16 @@ function Home() {
     }
   }
 
+  // 学期切替・表示曜日の変更用(トーストを出さずに静かに保存する)
+  const saveSettingsQuiet = async (s: Settings) => {
+    setSettings(s)
+    try {
+      await repo.saveSettingsCloud(s)
+    } catch {
+      flash('設定の保存に失敗しました')
+    }
+  }
+
   const handleConnect = async (moodleUrl: string, username: string, password: string) => {
     await connectMoodle(moodleUrl, username, password)
     setOnboardStep(null) // 初回案内の途中なら通常画面へ抜ける
@@ -379,11 +389,12 @@ function Home() {
           </div>
 
           {(() => {
-            // 今日の授業(day: 0=月〜5=土。日曜は表示なし)
+            // 今日の授業(day: 0=月〜5=土, 7=日)。現在の学期のコマのみ表示
             const jsDay = today.getDay()
-            const todayIdx = jsDay === 0 ? -1 : jsDay - 1
+            const todayIdx = jsDay === 0 ? 7 : jsDay - 1
+            const curSemester = settings.currentSemester ?? '前期'
             const todayClasses = slots
-              .filter((s) => s.day === todayIdx)
+              .filter((s) => s.day === todayIdx && s.semester === curSemester)
               .sort((a, b) => a.period - b.period)
             if (todayClasses.length === 0) return null
             return (
@@ -439,6 +450,8 @@ function Home() {
           onSlotsChange={setSlots}
           onToggle={toggleDone}
           onFlash={flash}
+          settings={settings}
+          onSaveSettings={saveSettingsQuiet}
         />
       )}
 

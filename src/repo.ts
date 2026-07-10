@@ -86,6 +86,7 @@ export async function fetchTimetable(): Promise<TimetableSlot[]> {
     period: r.period,
     course: r.course,
     room: r.room ?? undefined,
+    semester: r.semester ?? '前期',
   }))
 }
 
@@ -93,18 +94,26 @@ export async function addTimetableSlot(
   day: number,
   period: number,
   course: string,
+  semester: string,
   room?: string,
 ): Promise<TimetableSlot> {
   const { data, error } = await supabase
     .from('timetable_slots')
     .upsert(
-      { day, period, course, room: room || null },
-      { onConflict: 'user_id,day,period' },
+      { day, period, course, room: room || null, semester },
+      { onConflict: 'user_id,semester,day,period' },
     )
     .select()
     .single()
   if (error) throw error
-  return { id: data.id, day: data.day, period: data.period, course: data.course, room: data.room ?? undefined }
+  return {
+    id: data.id,
+    day: data.day,
+    period: data.period,
+    course: data.course,
+    room: data.room ?? undefined,
+    semester: data.semester ?? semester,
+  }
 }
 
 export async function deleteTimetableSlot(id: string): Promise<void> {
@@ -301,6 +310,8 @@ export async function fetchSettings(): Promise<Settings> {
     grade: data.grade ?? undefined,
     avatar: data.avatar ?? undefined,
     avatarUrl: data.avatar_url ?? undefined,
+    timetableDays: data.timetable_days ?? undefined,
+    currentSemester: data.current_semester ?? undefined,
   }
 }
 
@@ -322,6 +333,8 @@ export async function saveSettingsCloud(s: Settings): Promise<void> {
     grade: s.grade ?? null,
     avatar: s.avatar ?? null,
     avatar_url: s.avatarUrl ?? null,
+    timetable_days: s.timetableDays ?? null,
+    current_semester: s.currentSemester ?? null,
   })
   if (error) throw error
 }

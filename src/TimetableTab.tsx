@@ -1,15 +1,38 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import type { Task, TimetableSlot } from './types'
+import type { Settings, Task, TimetableDays, TimetableSlot } from './types'
+import { SEMESTER_OPTIONS } from './types'
 import * as repo from './repo'
 import { fetchCourses } from './materials'
 import CourseDetail from './CourseDetail'
 
-const DAYS = ['月', '火', '水', '木', '金', '土']
 const PERIODS = [1, 2, 3, 4, 5, 6]
 // オンデマンド講義は曜日・時限を持たないため、day に専用の値(グリッド外)を割り当てて
-// timetable_slots テーブル(day, period のユニーク制約)をそのまま流用する。
-// period はオンデマンド講義同士の登録順(1, 2, 3...)として使う
+// timetable_slots テーブルをそのまま流用する。period は登録順(1, 2, 3...)。
+// 日曜は day=7(6はオンデマンドで埋まっているため衝突を避ける)
 const ON_DEMAND_DAY = 6
+const WEEKDAY_DEFS = [
+  { label: '月', day: 0 },
+  { label: '火', day: 1 },
+  { label: '水', day: 2 },
+  { label: '木', day: 3 },
+  { label: '金', day: 4 },
+]
+const SAT_DEF = { label: '土', day: 5 }
+const SUN_DEF = { label: '日', day: 7 }
+const DAY_LABEL: Record<number, string> = { 0: '月', 1: '火', 2: '水', 3: '木', 4: '金', 5: '土', 7: '日' }
+
+/** 表示設定に応じた曜日カラムの定義 */
+function visibleDayDefs(mode: TimetableDays): { label: string; day: number }[] {
+  if (mode === 'weekday') return WEEKDAY_DEFS
+  if (mode === 'satsun') return [...WEEKDAY_DEFS, SAT_DEF, SUN_DEF]
+  return [...WEEKDAY_DEFS, SAT_DEF]
+}
+
+const DISPLAY_DAYS_LABEL: Record<TimetableDays, string> = {
+  weekday: '平日のみ',
+  sat: '平日+土',
+  satsun: '平日+土日',
+}
 
 // ローマ数字(Ⅰ〜Ⅹ)・全角英数字を正規化してから検索する。
 // 「電気回路Ⅰ」のような講義名は「電気回路1」と入力しても文字コードが違うためヒットしない問題への対応
@@ -33,9 +56,14 @@ export default function TimetableTab(props: {
   onSlotsChange: (slots: TimetableSlot[]) => void
   onToggle: (id: string) => void
   onFlash: (text: string) => void
+  settings: Settings
+  onSaveSettings: (s: Settings) => void
   initialCourse?: string | null
 }) {
-  const { tasks, slots, onSlotsChange, onToggle, onFlash, initialCourse } = props
+  const { tasks, slots, onSlotsChange, onToggle, onFlash, settings, onSaveSettings, initialCourse } = props
+  const timetableDays = settings.timetableDays ?? 'sat'
+  const semester = settings.currentSemester ?? '前期'
+  const dayDefs = visibleDayDefs(timetableDays)
   const [editMode, setEditMode] = useState(false)
   const [adding, setAdding] = useState<{ day: number; period: number } | null>(null)
   const [course, setCourse] = useState('')
@@ -91,11 +119,14 @@ export default function TimetableTab(props: {
   )
 
   const slotAt = (day: number, period: number) =>
-    slots.find((s) => s.day === day && s.period === period)
+    slots.find((s) => s.day === day && s.period === period && s.semester === semester)
 
   const onDemandSlots = useMemo(
-    () => slots.filter((s) => s.day === ON_DEMAND_DAY).sort((a, b) => a.period - b.period),
-    [slots],
+    () =>
+      slots
+        .filter((s) => s.day === ON_DEMAND_DAY && s.semester === semester)
+        .sort((a, b) => a.period - b.period),
+    [slots, semester],
   )
 
   // 未提出課題がある講義に赤ドットを出す
@@ -145,9 +176,17 @@ export default function TimetableTab(props: {
   const addSlot = async () => {
     if (!adding || !course.trim()) return
     try {
-      const created = await repo.addTimetableSlot(adding.day, adding.period, course.trim(), room.trim() || undefined)
+      const created = await repo.addTimetableSlot(
+        adding.day,
+        adding.period,
+        course.trim(),
+        semester,
+        room.trim() || undefined,
+      )
       onSlotsChange([
-        ...slots.filter((s) => !(s.day === created.day && s.period === created.period)),
+        ...slots.filter(
+          (s) => !(s.day === created.day && s.period === created.period && s.semester === created.semester),
+        ),
         created,
       ])
       setAdding(null)
@@ -185,12 +224,47 @@ export default function TimetableTab(props: {
         <p className="mt-1 px-1 text-xs text-red-500">削除したいコマをタップしてください</p>
       )}
 
+      <div className="mt-3 flex items-center gap-2 px-1">
+        <select
+          value={semester}
+          onChange={(e) => onSaveSettings({ ...settings, currentSemester: e.target.value })}
+          className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm font-medium text-gray-700"
+        >
+          {SEMESTER_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select
+          value={timetableDays}
+          onChange={(e) =>
+            onSaveSettings({ ...settings, timetableDays: e.target.value as TimetableDays })
+          }
+          className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-600"
+        >
+          {(['weekday', 'sat', 'satsun'] as TimetableDays[]).map((m) => (
+            <option key={m} value={m}>
+              {DISPLAY_DAYS_LABEL[m]}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {(
-        <div className="mt-3 grid grid-cols-[1.2rem_repeat(6,1fr)] gap-1">
+        <div
+          className="mt-3 grid gap-1"
+          style={{ gridTemplateColumns: `1.2rem repeat(${dayDefs.length}, 1fr)` }}
+        >
           <div />
-          {DAYS.map((d, i) => (
-            <div key={d} className={`text-center text-xs font-medium ${i === 5 ? 'text-blue-400' : 'text-gray-500'}`}>
-              {d}
+          {dayDefs.map((d) => (
+            <div
+              key={d.day}
+              className={`text-center text-xs font-medium ${
+                d.day === 5 ? 'text-blue-400' : d.day === 7 ? 'text-red-400' : 'text-gray-500'
+              }`}
+            >
+              {d.label}
             </div>
           ))}
           {PERIODS.map((p) => (
@@ -198,7 +272,7 @@ export default function TimetableTab(props: {
               <div className="flex items-center justify-center text-xs text-gray-400">
                 {p}
               </div>
-              {DAYS.map((_, day) => {
+              {dayDefs.map(({ day }) => {
                 const slot = slotAt(day, p)
                 const isSelected = adding?.day === day && adding?.period === p
                 return (
@@ -270,6 +344,7 @@ export default function TimetableTab(props: {
       </div>
 
       <p className="mt-2 px-1 text-[11px] text-gray-400">
+        上の学期を切り替えると、学期ごとに別の時間割を登録できます(コマは消えません)。
         空きコマの「+」で講義を登録。オンデマンド(曜日・時限が決まっていない講義)は下の欄から追加できます。
         講義をタップすると課題・資料・出席・成績見込みが見られます。赤い点は未提出の課題がある講義です。
       </p>
@@ -291,7 +366,7 @@ export default function TimetableTab(props: {
                 </span>
               ) : (
                 <span className="mr-1 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-700">
-                  {DAYS[adding.day]}曜 {adding.period}限
+                  {DAY_LABEL[adding.day]}曜 {adding.period}限
                 </span>
               )}
               に授業を追加
