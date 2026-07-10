@@ -267,7 +267,7 @@ function Home() {
         <p className="text-center text-xs font-bold text-indigo-400">ステップ 1 / 2</p>
         <h1 className="mt-1 text-center text-xl font-bold text-indigo-600">プロフィールを設定</h1>
         <p className="mt-1 text-center text-xs text-gray-500">
-          あなたのことを少しだけ教えてください(あとで「その他」からいつでも変更できます)
+          あなたのことを少しだけ教えてください(あとで「マイページ」からいつでも変更できます)
         </p>
         {message && (
           <div className="mt-3 rounded-lg bg-indigo-100 px-3 py-2 text-sm text-indigo-800">
@@ -319,7 +319,7 @@ function Home() {
         <button
           onClick={() => {
             setOnboardStep(null)
-            flash('あとで「その他」タブからいつでも連携できます')
+            flash('あとで「マイページ」タブからいつでも連携できます')
           }}
           className="mt-4 w-full py-2 text-xs text-gray-500 underline"
         >
@@ -478,7 +478,7 @@ function Home() {
             ['timetable', '🗓️', '時間割'],
             ['all', '📋', 'すべて'],
             ['job', '💼', '就活'],
-            ['settings', '⚙️', 'その他'],
+            ['settings', '👤', 'マイページ'],
           ] as const
         ).map(([key, icon, label]) => (
           <button
@@ -960,6 +960,56 @@ const COMING_SOON = [
   ['📝', 'ES・履歴書のAI添削'],
 ] as const
 
+/** マイページ内の折りたたみセクション(規約・設定など) */
+function CollapsibleSection(props: {
+  icon: string
+  title: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(props.defaultOpen ?? true)
+  return (
+    <div className="mt-5">
+      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between px-1 py-1">
+        <span className="flex items-center gap-1.5 text-sm font-bold text-gray-700">
+          <span>{props.icon}</span>
+          {props.title}
+        </span>
+        <span className={`text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`}>⌄</span>
+      </button>
+      {open && <div className="mt-2 rounded-xl bg-white p-4 shadow-sm">{props.children}</div>}
+    </div>
+  )
+}
+
+/** プロフィール編集の別画面(マイページの「プロフィール詳細」から遷移) */
+function ProfileDetailScreen(props: {
+  settings: Settings
+  onFlash: (text: string) => void
+  onSave: (s: Settings) => Promise<void> | void
+  onBack: () => void
+}) {
+  const { settings, onFlash, onSave, onBack } = props
+  return (
+    <main className="px-4 py-4">
+      <button onClick={onBack} className="text-sm text-indigo-600 underline">
+        ← マイページに戻る
+      </button>
+      <h2 className="mt-3 text-base font-bold text-gray-800">プロフィール詳細</h2>
+      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+        <ProfileForm
+          settings={settings}
+          onFlash={onFlash}
+          onSave={async (s) => {
+            await onSave(s)
+            onBack()
+          }}
+        />
+      </div>
+    </main>
+  )
+}
+
 function SettingsTab(props: {
   settings: Settings
   onSave: (s: Settings) => void
@@ -970,6 +1020,12 @@ function SettingsTab(props: {
   const [minutes, setMinutes] = useState(settings.minutesPerDay)
   const [notifyTime, setNotifyTime] = useState(settings.notifyTime)
   const [enabling, setEnabling] = useState(false)
+  const [email, setEmail] = useState<string | null>(null)
+  const [showProfileDetail, setShowProfileDetail] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null))
+  }, [])
 
   const save = () =>
     onSave({
@@ -1011,11 +1067,20 @@ function SettingsTab(props: {
     }
   }
 
-  const [editingProfile, setEditingProfile] = useState(false)
+  if (showProfileDetail) {
+    return (
+      <ProfileDetailScreen
+        settings={settings}
+        onFlash={onFlash}
+        onSave={onSave}
+        onBack={() => setShowProfileDetail(false)}
+      />
+    )
+  }
 
   return (
     <main className="px-4 py-4">
-      <h2 className="text-base font-bold text-gray-800">その他</h2>
+      <h2 className="text-base font-bold text-gray-800">マイページ</h2>
 
       <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3">
@@ -1030,111 +1095,103 @@ function SettingsTab(props: {
                 .join(' · ') || 'プロフィール未設定'}
             </p>
           </div>
-          <button
-            onClick={() => setEditingProfile(!editingProfile)}
-            className="shrink-0 text-xs text-indigo-600 underline"
-          >
-            {editingProfile ? '閉じる' : '編集'}
-          </button>
         </div>
-        {editingProfile && (
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <ProfileForm
-              settings={settings}
-              onFlash={onFlash}
-              onSave={async (s) => {
-                await onSave(s)
-                setEditingProfile(false)
-              }}
-            />
-          </div>
-        )}
+        {email && <p className="mt-3 truncate text-xs text-gray-500">✉️ {email}</p>}
+        <button
+          onClick={() => setShowProfileDetail(true)}
+          className="mt-3 w-full rounded-full border border-indigo-600 py-2 text-sm font-medium text-indigo-600"
+        >
+          ✏️ プロフィール詳細
+        </button>
       </div>
 
       <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
 
-      <div className="mt-4 space-y-4 rounded-xl bg-white p-4 shadow-sm">
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">
-            1日に課題へ使える時間: {fmtMinutes(minutes)}
-          </span>
-          <input
-            type="range"
-            min={30}
-            max={360}
-            step={30}
-            value={minutes}
-            onChange={(e) => setMinutes(Number(e.target.value))}
-            className="mt-2 w-full accent-indigo-600"
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">通知時刻</span>
-          <input
-            type="time"
-            value={notifyTime}
-            onChange={(e) => setNotifyTime(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          />
-          <span className="mt-1 block text-xs text-gray-500">
-            毎日この時刻に、未提出課題のまとめをプッシュ通知します
-          </span>
-        </label>
-
-        <button onClick={save} className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white">
-          保存
-        </button>
-      </div>
-
-      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
-        <button
-          onClick={handleEnablePush}
-          disabled={enabling}
-          className="w-full rounded-lg border border-indigo-600 py-2 text-sm font-bold text-indigo-600 disabled:opacity-50"
-        >
-          🔔 この端末で通知を受け取る
-        </button>
-        <p className="mt-2 text-xs text-gray-500">
-          iPhoneの場合は、先にSafariの共有ボタンから「ホーム画面に追加」し、
-          ホーム画面のUniPortを開いてからこのボタンを押してください
-        </p>
-      </div>
-
-      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800">🚀 近日公開</h3>
-        <ul className="mt-2 space-y-2">
-          {COMING_SOON.map(([icon, label]) => (
-            <li key={label} className="flex items-center justify-between text-sm text-gray-400">
-              <span>
-                {icon} {label}
-              </span>
-              <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px]">準備中</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <button
-        onClick={() => supabase.auth.signOut()}
-        className="mt-6 w-full rounded-lg border border-gray-300 py-2 text-sm text-gray-500"
-      >
-        ログアウト
-      </button>
-
-      <button
-        onClick={handleDeleteAccount}
-        disabled={deleting}
-        className="mt-3 w-full rounded-lg border border-red-200 py-2 text-sm text-red-400 disabled:opacity-50"
-      >
-        {deleting ? '削除中…' : 'アカウントを削除(全データ消去)'}
-      </button>
-
-      <p className="mt-4 text-center text-xs">
-        <a href="privacy.html" target="_blank" rel="noopener" className="text-gray-400 underline">
+      <CollapsibleSection icon="📄" title="規約">
+        <a href="privacy.html" target="_blank" rel="noopener" className="text-sm text-indigo-600 underline">
           プライバシーポリシー
         </a>
-      </p>
+      </CollapsibleSection>
+
+      <CollapsibleSection icon="⚙️" title="設定">
+        <div className="space-y-4">
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">
+              1日に課題へ使える時間: {fmtMinutes(minutes)}
+            </span>
+            <input
+              type="range"
+              min={30}
+              max={360}
+              step={30}
+              value={minutes}
+              onChange={(e) => setMinutes(Number(e.target.value))}
+              className="mt-2 w-full accent-indigo-600"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">通知時刻</span>
+            <input
+              type="time"
+              value={notifyTime}
+              onChange={(e) => setNotifyTime(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            />
+            <span className="mt-1 block text-xs text-gray-500">
+              毎日この時刻に、未提出課題のまとめをプッシュ通知します
+            </span>
+          </label>
+
+          <button onClick={save} className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white">
+            保存
+          </button>
+
+          <div className="border-t border-gray-100 pt-4">
+            <button
+              onClick={handleEnablePush}
+              disabled={enabling}
+              className="w-full rounded-lg border border-indigo-600 py-2 text-sm font-bold text-indigo-600 disabled:opacity-50"
+            >
+              🔔 この端末で通知を受け取る
+            </button>
+            <p className="mt-2 text-xs text-gray-500">
+              iPhoneの場合は、先にSafariの共有ボタンから「ホーム画面に追加」し、
+              ホーム画面のUniPortを開いてからこのボタンを押してください
+            </p>
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <h3 className="text-sm font-bold text-gray-800">🚀 近日公開</h3>
+            <ul className="mt-2 space-y-2">
+              {COMING_SOON.map(([icon, label]) => (
+                <li key={label} className="flex items-center justify-between text-sm text-gray-400">
+                  <span>
+                    {icon} {label}
+                  </span>
+                  <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px]">準備中</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="space-y-3 border-t border-gray-100 pt-4">
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="w-full rounded-lg border border-gray-300 py-2 text-sm text-gray-500"
+            >
+              ログアウト
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="w-full rounded-lg border border-red-200 py-2 text-sm text-red-400 disabled:opacity-50"
+            >
+              {deleting ? '削除中…' : 'アカウントを削除(全データ消去)'}
+            </button>
+          </div>
+        </div>
+      </CollapsibleSection>
     </main>
   )
 }
