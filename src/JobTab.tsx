@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Company, JobEntry, JobProfile } from './types'
+import type { Company, JobEntry, JobNote, JobProfile } from './types'
+import { JOB_NOTE_CATEGORIES, JOB_STATUSES } from './types'
 import * as repo from './repo'
 import { JOB_TEMPLATES } from './jobTemplates'
 
@@ -114,6 +115,15 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
       await repo.deleteJobEntry(id)
     } catch {
       onFlash('削除に失敗しました')
+    }
+  }
+
+  const changeStatus = async (e: JobEntry, status: string) => {
+    setEntries((es) => es.map((x) => (x.id === e.id ? { ...x, status: status || undefined } : x)))
+    try {
+      await repo.updateJobEntryStatus(e.id, status || null)
+    } catch {
+      onFlash('更新に失敗しました')
     }
   }
 
@@ -270,6 +280,21 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
                       )}
                       {e.memo && <span className="ml-2 text-gray-400">{e.memo}</span>}
                     </p>
+                    <select
+                      value={e.status ?? ''}
+                      onChange={(ev) => changeStatus(e, ev.target.value)}
+                      className={`mt-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                        JOB_STATUSES.find((s) => s.key === e.status)?.color ??
+                        'bg-gray-50 text-gray-400'
+                      }`}
+                    >
+                      <option value="">状態なし</option>
+                      {JOB_STATUSES.map((s) => (
+                        <option key={s.key} value={s.key}>
+                          {s.key}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <button
                     onClick={() => removeEntry(e.id)}
@@ -420,6 +445,9 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
         </ul>
       </div>
 
+      {/* 6.5 自己分析メモ */}
+      <JobNotes onFlash={onFlash} />
+
       {/* 7. Premium(準備中) */}
       <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
         <h3 className="text-sm font-bold text-slate-700">
@@ -557,6 +585,159 @@ function JobProfileForm(props: {
       >
         保存
       </button>
+    </div>
+  )
+}
+
+function JobNotes(props: { onFlash: (text: string) => void }) {
+  const { onFlash } = props
+  const [notes, setNotes] = useState<JobNote[]>([])
+  const [editing, setEditing] = useState<JobNote | 'new' | null>(null)
+  const [category, setCategory] = useState<string>(JOB_NOTE_CATEGORIES[0])
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+
+  useEffect(() => {
+    repo.fetchJobNotes().then(setNotes).catch(() => {})
+  }, [])
+
+  const startNew = () => {
+    setEditing('new')
+    setCategory(JOB_NOTE_CATEGORIES[0])
+    setTitle('')
+    setBody('')
+  }
+  const startEdit = (n: JobNote) => {
+    setEditing(n)
+    setCategory(n.category)
+    setTitle(n.title ?? '')
+    setBody(n.body)
+  }
+
+  const save = async () => {
+    if (!body.trim()) {
+      onFlash('本文を入力してください')
+      return
+    }
+    try {
+      if (editing === 'new') {
+        const created = await repo.addJobNote({ category, title: title.trim() || undefined, body: body.trim() })
+        setNotes((ns) => [created, ...ns])
+      } else if (editing) {
+        const updated = { ...editing, category, title: title.trim() || undefined, body: body.trim() }
+        await repo.updateJobNote(updated)
+        setNotes((ns) => [updated, ...ns.filter((x) => x.id !== updated.id)])
+      }
+      setEditing(null)
+    } catch {
+      onFlash('保存に失敗しました')
+    }
+  }
+
+  const remove = async (id: string) => {
+    if (!window.confirm('このメモを削除しますか?')) return
+    setNotes((ns) => ns.filter((n) => n.id !== id))
+    try {
+      await repo.deleteJobNote(id)
+    } catch {
+      onFlash('削除に失敗しました')
+    }
+  }
+
+  const copy = (n: JobNote) => {
+    navigator.clipboard
+      .writeText(n.body)
+      .then(() => onFlash('メモをコピーしました'))
+      .catch(() => onFlash('コピーに失敗しました'))
+  }
+
+  return (
+    <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-gray-800">🧠 自己分析メモ</h3>
+        <button onClick={startNew} className="text-xs text-indigo-600 underline">
+          + 追加
+        </button>
+      </div>
+      <p className="mt-1 text-[11px] text-gray-400">
+        ガクチカ・自己PR・強みなどを書きためて、ESや面接でコピーして使えます
+      </p>
+
+      {editing && (
+        <div className="mt-3 space-y-2 rounded-lg bg-gray-50 p-3">
+          <div className="flex flex-wrap gap-1.5">
+            {JOB_NOTE_CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                className={`rounded-full px-2.5 py-1 text-xs ${
+                  category === c ? 'bg-slate-800 text-white' : 'bg-white text-gray-500'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="タイトル(任意 例: サークルの代表経験)"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="本文をここに書きためておく"
+            rows={4}
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => setEditing(null)}
+              className="flex-1 rounded-lg border border-gray-200 py-2 text-sm text-gray-500"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={save}
+              className="flex-1 rounded-lg bg-slate-800 py-2 text-sm font-bold text-white"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      )}
+
+      {notes.length === 0 && !editing ? (
+        <p className="mt-2 text-xs text-gray-400">まだメモはありません。「+ 追加」から書けます</p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {notes.map((n) => (
+            <li key={n.id} className="rounded-lg border border-gray-100 p-2">
+              <div className="flex items-center gap-2">
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                  {n.category}
+                </span>
+                {n.title && (
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">
+                    {n.title}
+                  </span>
+                )}
+                <button onClick={() => copy(n)} className="shrink-0 text-xs text-indigo-600" aria-label="コピー">
+                  📋
+                </button>
+                <button onClick={() => startEdit(n)} className="shrink-0 text-xs text-gray-400" aria-label="編集">
+                  ✏️
+                </button>
+                <button onClick={() => remove(n.id)} className="shrink-0 text-xs text-gray-300 hover:text-red-500" aria-label="削除">
+                  ✕
+                </button>
+              </div>
+              <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs text-gray-600">{n.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

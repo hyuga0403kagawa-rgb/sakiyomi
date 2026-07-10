@@ -83,7 +83,7 @@ export interface AttendanceRecord {
   status: AttendanceStatus
 }
 
-/** 就活: エントリー締切 */
+/** 就活: エントリー締切・予定 */
 export interface JobEntry {
   id: string
   company: string
@@ -91,7 +91,29 @@ export interface JobEntry {
   deadline?: string
   memo?: string
   done: boolean
+  /** 選考ステータス(JOB_STATUSES のいずれか)。未設定可 */
+  status?: string
 }
+
+/** 選考ステータスの選択肢と色 */
+export const JOB_STATUSES = [
+  { key: '気になる', color: 'bg-gray-100 text-gray-600' },
+  { key: 'エントリー済', color: 'bg-blue-100 text-blue-700' },
+  { key: '選考中', color: 'bg-amber-100 text-amber-700' },
+  { key: '内定', color: 'bg-green-100 text-green-700' },
+  { key: 'お見送り', color: 'bg-red-100 text-red-600' },
+] as const
+
+/** 就活: 自己分析・ガクチカなどのメモ */
+export interface JobNote {
+  id: string
+  category: string
+  title?: string
+  body: string
+}
+
+/** 自己分析メモのカテゴリ */
+export const JOB_NOTE_CATEGORIES = ['ガクチカ', '自己PR', '強み・弱み', '志望動機', 'その他'] as const
 
 /** 就活: 学生側プロフィール(マッチング用) */
 export interface JobProfile {

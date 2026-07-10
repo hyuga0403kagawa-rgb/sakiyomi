@@ -31,6 +31,29 @@ function crossed(thresholdMs: number, nowMs: number): boolean {
   return thresholdMs <= nowMs && thresholdMs > nowMs - WINDOW
 }
 
+interface JobEntryLite {
+  company: string
+  entry_type: string
+  deadline: string | null
+  done: boolean
+}
+
+/** 就活の予定(説明会・締切など)の前日18時・当日8時にまたいだものを通知する */
+function buildJobReminderLines(entries: JobEntryLite[], nowMs: number): string[] {
+  const lines: string[] = []
+  for (const e of entries) {
+    if (e.done || !e.deadline) continue
+    // deadline は YYYY-MM-DD。その日のJST 0時をミリ秒に変換
+    const midnightJst = Date.parse(`${e.deadline}T00:00:00+09:00`)
+    if (Number.isNaN(midnightJst)) continue
+    const sameDay = midnightJst + 8 * HOUR // 当日 8:00 JST
+    const dayBefore = midnightJst - 6 * HOUR // 前日 18:00 JST
+    if (crossed(sameDay, nowMs)) lines.push(`🔔 今日: ${e.company}(${e.entry_type})`)
+    else if (crossed(dayBefore, nowMs)) lines.push(`📌 明日: ${e.company}(${e.entry_type})`)
+  }
+  return lines
+}
+
 function buildReminderLines(tasks: TaskLite[], nowMs: number): string[] {
   const lines: string[] = []
   for (const t of tasks) {
@@ -129,6 +152,21 @@ Deno.serve(async (req) => {
       })
     }
 
+    // --- 1.5 就活の予定リマインダー(前日・当日) ---
+    const { data: jobRows } = await admin
+      .from('job_entries')
+      .select('company, entry_type, deadline, done')
+      .eq('user_id', s.user_id)
+    const jobLines = buildJobReminderLines((jobRows ?? []) as JobEntryLite[], nowMs)
+    let jobReminded = 0
+    if (jobLines.length > 0) {
+      jobReminded = await sendToSubs(admin, subs, {
+        title: '💼 就活の予定',
+        body: jobLines.slice(0, 5).join('\n'),
+        url: './',
+      })
+    }
+
     // --- 2. 毎日のまとめ(notify_time以降・1日1回) ---
     let summarized = 0
     const summaryDue = force || ((s.notified_date ?? '') !== today && hm >= (s.notify_time || '18:00'))
@@ -157,7 +195,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    results.push({ userId: s.user_id, reminded, reminderLines: lines.length, summarized })
+    results.push({
+      userId: s.user_id,
+      reminded,
+      reminderLines: lines.length,
+      jobReminded,
+      jobReminderLines: jobLines.length,
+      summarized,
+    })
   }
   return json({ results })
 })

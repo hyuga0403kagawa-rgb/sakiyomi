@@ -5,6 +5,7 @@ import type {
   Company,
   CourseInfo,
   JobEntry,
+  JobNote,
   JobProfile,
   Settings,
   Task,
@@ -215,6 +216,7 @@ export async function fetchJobEntries(): Promise<JobEntry[]> {
     deadline: r.deadline ?? undefined,
     memo: r.memo ?? undefined,
     done: r.done,
+    status: r.status ?? undefined,
   }))
 }
 
@@ -226,6 +228,7 @@ export async function addJobEntry(e: Omit<JobEntry, 'id' | 'done'>): Promise<Job
       entry_type: e.entryType,
       deadline: e.deadline ?? null,
       memo: e.memo ?? null,
+      status: e.status ?? null,
     })
     .select()
     .single()
@@ -237,6 +240,7 @@ export async function addJobEntry(e: Omit<JobEntry, 'id' | 'done'>): Promise<Job
     deadline: data.deadline ?? undefined,
     memo: data.memo ?? undefined,
     done: data.done,
+    status: data.status ?? undefined,
   }
 }
 
@@ -245,8 +249,52 @@ export async function updateJobEntryDone(id: string, done: boolean): Promise<voi
   if (error) throw error
 }
 
+export async function updateJobEntryStatus(id: string, status: string | null): Promise<void> {
+  const { error } = await supabase.from('job_entries').update({ status }).eq('id', id)
+  if (error) throw error
+}
+
 export async function deleteJobEntry(id: string): Promise<void> {
   const { error } = await supabase.from('job_entries').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- 就活: 自己分析メモ ----------
+
+export async function fetchJobNotes(): Promise<JobNote[]> {
+  const { data, error } = await supabase
+    .from('job_notes')
+    .select('*')
+    .order('updated_at', { ascending: false })
+  if (error) throw error
+  return data.map((r) => ({
+    id: r.id,
+    category: r.category,
+    title: r.title ?? undefined,
+    body: r.body,
+  }))
+}
+
+export async function addJobNote(n: Omit<JobNote, 'id'>): Promise<JobNote> {
+  const { data, error } = await supabase
+    .from('job_notes')
+    .insert({ category: n.category, title: n.title ?? null, body: n.body })
+    .select()
+    .single()
+  if (error) throw error
+  return { id: data.id, category: data.category, title: data.title ?? undefined, body: data.body }
+}
+
+export async function updateJobNote(n: JobNote): Promise<void> {
+  const { error } = await supabase
+    .from('job_notes')
+    .update({ category: n.category, title: n.title ?? null, body: n.body, updated_at: new Date().toISOString() })
+    .eq('id', n.id)
+  if (error) throw error
+}
+
+export async function deleteJobNote(id: string): Promise<void> {
+  const { error } = await supabase.from('job_notes').delete().eq('id', id)
   if (error) throw error
 }
 
