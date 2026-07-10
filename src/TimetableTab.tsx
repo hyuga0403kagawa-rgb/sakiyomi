@@ -23,8 +23,12 @@ export default function TimetableTab(props: {
   const [course, setCourse] = useState('')
   const [room, setRoom] = useState('')
   const [selectedCourse, setSelectedCourse] = useState<string | null>(initialCourse ?? null)
-  // Moodleに履修登録してある講義名(課題の有無に関わらず全部)。終了済み・非表示は除外
-  const [enrolledCourses, setEnrolledCourses] = useState<string[]>([])
+  // Moodleに履修登録してある講義名(課題の有無に関わらず全部)を、終了済み/非表示かどうかで分けて持つ。
+  // 大学Moodleの enddate/visible が実態とズレている場合があるため、除外した講義も
+  // 「終了済み・非表示の講義も表示」から後で選べるようにする(でないと原因が分からず詰む)
+  const [activeEnrolled, setActiveEnrolled] = useState<string[]>([])
+  const [excludedEnrolled, setExcludedEnrolled] = useState<string[]>([])
+  const [showExcluded, setShowExcluded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -32,12 +36,18 @@ export default function TimetableTab(props: {
       try {
         const courses = await fetchCourses()
         const now = Date.now()
-        const names = courses
-          // enddate は Unix秒。0/未設定なら終了日なし。過去なら「授業が終了」なので除外。
-          // visible=0(非表示)の講義も候補から除く
-          .filter((c) => (c.visible ?? 1) !== 0 && (!c.enddate || c.enddate * 1000 > now))
-          .map((c) => c.name)
-        if (!cancelled) setEnrolledCourses(names)
+        const active: string[] = []
+        const excluded: string[] = []
+        for (const c of courses) {
+          // enddate は Unix秒。0/未設定なら終了日なし。visible=0 は非表示コース。
+          const ended = Boolean(c.enddate) && c.enddate! * 1000 < now
+          const hidden = (c.visible ?? 1) === 0
+          ;(ended || hidden ? excluded : active).push(c.name)
+        }
+        if (!cancelled) {
+          setActiveEnrolled(active)
+          setExcludedEnrolled(excluded)
+        }
       } catch {
         // 未連携・通信失敗時は候補なしのまま(課題・時間割由来の候補は従来どおり出る)
       }
@@ -47,14 +57,20 @@ export default function TimetableTab(props: {
     }
   }, [])
 
-  // 講義名の候補: Moodle履修中の全講義 + 課題から取れた講義名 + 既存の時間割
+  // 講義名の候補: Moodle履修中の講義(終了済み等は除く) + 課題から取れた講義名 + 既存の時間割
   const knownCourses = useMemo(() => {
     const s = new Set<string>()
-    for (const name of enrolledCourses) s.add(name)
+    for (const name of activeEnrolled) s.add(name)
     for (const t of tasks) if (t.course) s.add(t.course)
     for (const slot of slots) s.add(slot.course)
     return [...s].sort((a, b) => a.localeCompare(b, 'ja'))
-  }, [enrolledCourses, tasks, slots])
+  }, [activeEnrolled, tasks, slots])
+
+  // 上の除外ロジックに引っかかった講義(トグルで表示するまでは隠す)
+  const hiddenCourses = useMemo(
+    () => excludedEnrolled.filter((c) => !knownCourses.includes(c)).sort((a, b) => a.localeCompare(b, 'ja')),
+    [excludedEnrolled, knownCourses],
+  )
 
   const slotAt = (day: number, period: number) =>
     slots.find((s) => s.day === day && s.period === period)
@@ -217,7 +233,10 @@ export default function TimetableTab(props: {
             const suggestions = knownCourses
               .filter((c) => c !== course && (!q || c.toLowerCase().includes(q)))
               .slice(0, 6)
-            if (suggestions.length === 0) return null
+            const excludedMatches = showExcluded
+              ? hiddenCourses.filter((c) => c !== course && (!q || c.toLowerCase().includes(q)))
+              : []
+            if (suggestions.length === 0 && excludedMatches.length === 0) return null
             return (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {suggestions.map((c) => (
@@ -229,9 +248,29 @@ export default function TimetableTab(props: {
                     {c}
                   </button>
                 ))}
+                {excludedMatches.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setCourse(c)}
+                    className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500"
+                    title="Moodle上で終了済み/非表示になっている講義です"
+                  >
+                    {c}
+                  </button>
+                ))}
               </div>
             )
           })()}
+          {hiddenCourses.length > 0 && (
+            <button
+              onClick={() => setShowExcluded(!showExcluded)}
+              className="mt-1.5 text-[11px] text-gray-400 underline"
+            >
+              {showExcluded
+                ? '終了済み・非表示の講義を隠す'
+                : `終了済み・非表示の講義も表示(${hiddenCourses.length}件)`}
+            </button>
+          )}
           <input
             value={room}
             onChange={(e) => setRoom(e.target.value)}
