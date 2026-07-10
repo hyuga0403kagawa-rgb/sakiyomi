@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { AttendanceRecord, AttendanceStatus, CourseInfo, Task } from './types'
 import * as repo from './repo'
 import { fetchCourseFiles, fetchCourses, fileIcon, fmtFileSize, type MaterialFile } from './materials'
+import { COURSE_COLOR_CLASS, COURSE_COLOR_KEYS, DEFAULT_COURSE_COLOR } from './courseColors'
 import TaskRow from './TaskRow'
 
 /** シラバスの貼り付けテキストから評価割合などを自動読み取りする(ルールベース) */
@@ -39,8 +40,10 @@ export default function CourseDetail(props: {
   onToggle: (id: string) => void
   onBack: () => void
   onFlash: (text: string) => void
+  color?: string
+  onColorChange?: (color: string) => void
 }) {
-  const { course, tasks, onToggle, onBack, onFlash } = props
+  const { course, tasks, onToggle, onBack, onFlash, color, onColorChange } = props
   const [info, setInfo] = useState<CourseInfo | null>(null)
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [files, setFiles] = useState<MaterialFile[] | null>(null)
@@ -155,6 +158,19 @@ export default function CourseDetail(props: {
     }
   }
 
+  const currentColor = color ?? info?.color ?? DEFAULT_COURSE_COLOR
+  const changeColor = async (key: string) => {
+    onColorChange?.(key) // 時間割側の表示を即反映
+    const merged = { ...(info ?? { course }), course, color: key }
+    setInfo(merged)
+    setForm((f) => ({ ...f, color: key }))
+    try {
+      await repo.upsertCourseInfo(merged)
+    } catch {
+      onFlash('色の保存に失敗しました')
+    }
+  }
+
   const runExtract = () => {
     if (!paste.trim()) return
     const ex = extractSyllabus(paste)
@@ -189,6 +205,23 @@ export default function CourseDetail(props: {
         ← 時間割に戻る
       </button>
       <h2 className="mt-2 text-lg font-bold text-gray-800">{course}</h2>
+
+      {/* 講義の色 */}
+      <div className="mt-3 flex items-center gap-2">
+        <span className="text-xs text-gray-500">色</span>
+        <div className="flex flex-wrap gap-1.5">
+          {COURSE_COLOR_KEYS.map((key) => (
+            <button
+              key={key}
+              onClick={() => changeColor(key)}
+              aria-label={`色を${key}にする`}
+              className={`h-6 w-6 rounded-full ${COURSE_COLOR_CLASS[key].swatch} ${
+                currentColor === key ? 'ring-2 ring-gray-800 ring-offset-1' : ''
+              }`}
+            />
+          ))}
+        </div>
+      </div>
 
       {/* 成績見込み */}
       <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">

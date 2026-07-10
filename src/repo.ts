@@ -139,7 +139,17 @@ export async function fetchCourseInfo(course: string): Promise<CourseInfo | null
     textbook: data.textbook ?? undefined,
     bringIn: data.bring_in ?? undefined,
     notes: data.notes ?? undefined,
+    color: data.color ?? undefined,
   }
+}
+
+/** 全講義の色を { 講義名: 色キー } でまとめて取得(時間割の色付け用) */
+export async function fetchCourseColors(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.from('course_info').select('course, color')
+  if (error) throw error
+  const map: Record<string, string> = {}
+  for (const r of data) if (r.color) map[r.course] = r.color
+  return map
 }
 
 export async function upsertCourseInfo(info: CourseInfo): Promise<void> {
@@ -156,6 +166,7 @@ export async function upsertCourseInfo(info: CourseInfo): Promise<void> {
       textbook: info.textbook ?? null,
       bring_in: info.bringIn ?? null,
       notes: info.notes ?? null,
+      color: info.color ?? null,
     },
     { onConflict: 'user_id,course' },
   )

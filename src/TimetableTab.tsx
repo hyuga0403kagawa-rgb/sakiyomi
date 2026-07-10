@@ -2,10 +2,20 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { Settings, Task, TimetableDays, TimetableSlot } from './types'
 import * as repo from './repo'
 import { fetchCourses } from './materials'
-import { defaultSemester, semesterOptions } from './semester'
+import { SEMESTER_TERMS, defaultSemester, parseSemester, yearOptions } from './semester'
+import { colorClass } from './courseColors'
 import CourseDetail from './CourseDetail'
 
 const PERIODS = [1, 2, 3, 4, 5, 6]
+// 標準的な90分授業の時限時刻(参考表示)。大学によって多少前後する
+const PERIOD_TIMES: Record<number, [string, string]> = {
+  1: ['08:50', '10:20'],
+  2: ['10:30', '12:00'],
+  3: ['13:00', '14:30'],
+  4: ['14:40', '16:10'],
+  5: ['16:20', '17:50'],
+  6: ['18:00', '19:30'],
+}
 // オンデマンド講義は曜日・時限を持たないため、day に専用の値(グリッド外)を割り当てて
 // timetable_slots テーブルをそのまま流用する。period は登録順(1, 2, 3...)。
 // 日曜は day=7(6はオンデマンドで埋まっているため衝突を避ける)
@@ -48,6 +58,86 @@ function normalizeForSearch(s: string): string {
     .toLowerCase()
 }
 
+/** 年度・学期を切り替えるボトムシート */
+function SemesterModal(props: {
+  current: string
+  onClose: () => void
+  onApply: (semester: string) => void
+}) {
+  const parsed = parseSemester(props.current)
+  const [year, setYear] = useState(parsed.year)
+  const [term, setTerm] = useState(parsed.term)
+  const years = yearOptions(parsed.year)
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+      onClick={props.onClose}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 pb-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <button onClick={props.onClose} className="text-2xl leading-none text-gray-400">
+            ×
+          </button>
+          <h3 className="text-base font-bold text-gray-800">年度・学期切替</h3>
+          <span className="w-6" />
+        </div>
+        <p className="mt-4 text-sm text-gray-500">
+          年度や学期が変わったときは、こちらから表示を切り替えましょう💡
+        </p>
+        <p className="mt-1 text-xs text-gray-400">※過去に作成した時間割も引き続きご利用できます</p>
+
+        <label className="mt-5 block text-sm font-bold text-gray-700">年度</label>
+        <select
+          value={year}
+          onChange={(e) => setYear(Number(e.target.value))}
+          className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base"
+        >
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+
+        <p className="mt-5 text-sm font-bold text-gray-700">学期</p>
+        <div className="mt-2 space-y-1">
+          {SEMESTER_TERMS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTerm(t.key)}
+              className="flex w-full items-center gap-3 rounded-lg px-1 py-2.5 text-left"
+            >
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                  term === t.key ? 'border-blue-500' : 'border-gray-300'
+                }`}
+              >
+                {term === t.key && <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />}
+              </span>
+              <span className="text-sm text-gray-800">{t.label}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-gray-400">
+          ※クォーター制の方は、1学期〜4学期の中から該当する学期を選択しましょう
+          <br />
+          (例: 第1クォーター → 1学期)
+        </p>
+
+        <button
+          onClick={() => props.onApply(`${year} ${term}`)}
+          className="mt-5 w-full rounded-xl bg-blue-500 py-3 text-base font-bold text-white"
+        >
+          変更する
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /** 時間割タブ: 曜日×時限グリッド。コマをタップすると講義詳細へ。
  *  時間割データ(slots)は「今日」タブとも共有するため親(Home)が持つ */
 export default function TimetableTab(props: {
@@ -63,17 +153,25 @@ export default function TimetableTab(props: {
   const { tasks, slots, onSlotsChange, onToggle, onFlash, settings, onSaveSettings, initialCourse } = props
   const timetableDays = settings.timetableDays ?? 'sat'
   const semester = settings.currentSemester ?? defaultSemester()
+  const { year, term } = parseSemester(semester)
   const dayDefs = visibleDayDefs(timetableDays)
-  // 学期の選択肢は「今の年度±1 × 前期/後期」を自動生成。既存データにある学期も含める
-  const semesterChoices = useMemo(
-    () => semesterOptions(semester, slots.map((s) => s.semester)),
-    [semester, slots],
-  )
+  // 今日の曜日(day値)。日曜は7、月〜土は0〜5
+  const todayDayValue = (() => {
+    const j = new Date().getDay()
+    return j === 0 ? 7 : j - 1
+  })()
   const [editMode, setEditMode] = useState(false)
+  const [showSemesterModal, setShowSemesterModal] = useState(false)
   const [adding, setAdding] = useState<{ day: number; period: number } | null>(null)
   const [course, setCourse] = useState('')
   const [room, setRoom] = useState('')
   const [selectedCourse, setSelectedCourse] = useState<string | null>(initialCourse ?? null)
+  // 講義ごとの色(course_info.color)。{ 講義名: 色キー }
+  const [courseColors, setCourseColors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    repo.fetchCourseColors().then(setCourseColors).catch(() => {})
+  }, [])
   // Moodleに履修登録してある講義名(課題の有無に関わらず全部)を、終了済み/非表示かどうかで分けて持つ。
   // 大学Moodleの enddate/visible が実態とズレている場合があるため、除外した講義も
   // 「終了済み・非表示の講義も表示」から後で選べるようにする(でないと原因が分からず詰む)
@@ -208,6 +306,10 @@ export default function TimetableTab(props: {
         onToggle={onToggle}
         onBack={() => setSelectedCourse(null)}
         onFlash={onFlash}
+        color={courseColors[selectedCourse]}
+        onColorChange={(c) =>
+          setCourseColors((m) => ({ ...m, [selectedCourse]: c }))
+        }
       />
     )
   }
@@ -215,7 +317,31 @@ export default function TimetableTab(props: {
   return (
     <main className="px-3 py-4">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-base font-bold text-gray-800">時間割</h2>
+        <h2 className="text-lg font-bold text-gray-800">
+          {year}年 {term}
+        </h2>
+        <button
+          onClick={() => setShowSemesterModal(true)}
+          className="rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-600"
+        >
+          学期切替
+        </button>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between px-1">
+        <select
+          value={timetableDays}
+          onChange={(e) =>
+            onSaveSettings({ ...settings, timetableDays: e.target.value as TimetableDays })
+          }
+          className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600"
+        >
+          {(['weekday', 'sat', 'satsun'] as TimetableDays[]).map((m) => (
+            <option key={m} value={m}>
+              {DISPLAY_DAYS_LABEL[m]}
+            </option>
+          ))}
+        </select>
         <button
           onClick={() => setEditMode(!editMode)}
           className={`rounded-lg px-3 py-1 text-xs ${
@@ -229,32 +355,16 @@ export default function TimetableTab(props: {
         <p className="mt-1 px-1 text-xs text-red-500">削除したいコマをタップしてください</p>
       )}
 
-      <div className="mt-3 flex items-center gap-2 px-1">
-        <select
-          value={semester}
-          onChange={(e) => onSaveSettings({ ...settings, currentSemester: e.target.value })}
-          className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm font-medium text-gray-700"
-        >
-          {semesterChoices.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select
-          value={timetableDays}
-          onChange={(e) =>
-            onSaveSettings({ ...settings, timetableDays: e.target.value as TimetableDays })
-          }
-          className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-600"
-        >
-          {(['weekday', 'sat', 'satsun'] as TimetableDays[]).map((m) => (
-            <option key={m} value={m}>
-              {DISPLAY_DAYS_LABEL[m]}
-            </option>
-          ))}
-        </select>
-      </div>
+      {showSemesterModal && (
+        <SemesterModal
+          current={semester}
+          onClose={() => setShowSemesterModal(false)}
+          onApply={(s) => {
+            onSaveSettings({ ...settings, currentSemester: s })
+            setShowSemesterModal(false)
+          }}
+        />
+      )}
 
       {(
         <div
@@ -262,35 +372,48 @@ export default function TimetableTab(props: {
           style={{ gridTemplateColumns: `1.2rem repeat(${dayDefs.length}, 1fr)` }}
         >
           <div />
-          {dayDefs.map((d) => (
-            <div
-              key={d.day}
-              className={`text-center text-xs font-medium ${
-                d.day === 5 ? 'text-blue-400' : d.day === 7 ? 'text-red-400' : 'text-gray-500'
-              }`}
-            >
-              {d.label}
-            </div>
-          ))}
+          {dayDefs.map((d) => {
+            const isToday = d.day === todayDayValue
+            const dayColor = d.day === 5 ? 'text-blue-400' : d.day === 7 ? 'text-red-400' : 'text-gray-500'
+            return (
+              <div key={d.day} className="flex items-center justify-center">
+                {isToday ? (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
+                    {d.label}
+                  </span>
+                ) : (
+                  <span className={`text-xs font-medium ${dayColor}`}>{d.label}</span>
+                )}
+              </div>
+            )
+          })}
           {PERIODS.map((p) => (
             <Fragment key={`row-${p}`}>
-              <div className="flex items-center justify-center text-xs text-gray-400">
-                {p}
+              <div className="flex flex-col items-center justify-center py-1 text-center">
+                <span className="text-xs font-bold text-gray-600">{p}</span>
+                {PERIOD_TIMES[p] && (
+                  <span className="mt-0.5 text-[7px] leading-tight text-gray-400">
+                    {PERIOD_TIMES[p][0]}
+                    <br />|<br />
+                    {PERIOD_TIMES[p][1]}
+                  </span>
+                )}
               </div>
               {dayDefs.map(({ day }) => {
                 const slot = slotAt(day, p)
                 const isSelected = adding?.day === day && adding?.period === p
+                const c = slot ? colorClass(courseColors[slot.course]) : null
                 return (
                   <button
                     key={`${day}-${p}`}
                     onClick={() => handleCellTap(day, p)}
-                    className={`relative min-h-16 rounded-lg p-1 text-left align-top transition ${
+                    className={`relative flex min-h-16 flex-col rounded-lg p-1 text-left transition ${
                       isSelected
                         ? 'bg-indigo-100 ring-2 ring-indigo-500'
                         : slot
                           ? editMode
                             ? 'border border-red-200 bg-red-50'
-                            : 'bg-indigo-50'
+                            : c!.cell
                           : 'border border-dashed border-gray-200 bg-white'
                     }`}
                   >
@@ -299,12 +422,16 @@ export default function TimetableTab(props: {
                         {pendingCourses.has(slot.course) && (
                           <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
                         )}
-                        <span className="block break-all text-[10px] font-medium leading-tight text-indigo-800">
-                          {slot.course.length > 14 ? slot.course.slice(0, 14) + '…' : slot.course}
+                        <span className={`block flex-1 break-all text-[10px] font-medium leading-tight ${c!.text}`}>
+                          {slot.course.length > 16 ? slot.course.slice(0, 16) + '…' : slot.course}
                         </span>
-                        {slot.room && (
-                          <span className="mt-0.5 block text-[9px] text-indigo-400">{slot.room}</span>
-                        )}
+                        <span
+                          className={`mt-0.5 self-start rounded bg-white/70 px-1 py-px text-[8px] ${
+                            slot.room ? 'text-gray-600' : 'text-gray-400'
+                          }`}
+                        >
+                          {slot.room || '未登録'}
+                        </span>
                       </>
                     ) : isSelected ? (
                       <span className="flex h-full items-center justify-center text-[10px] font-bold text-indigo-600">
@@ -324,21 +451,24 @@ export default function TimetableTab(props: {
       <div className="mt-4 px-1">
         <h3 className="text-xs font-bold text-gray-500">🖥️ オンデマンド</h3>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {onDemandSlots.map((slot) => (
-            <button
-              key={slot.id}
-              onClick={() => handleOnDemandTap(slot)}
-              className={`relative rounded-lg px-2.5 py-1.5 text-left text-xs ${
-                editMode ? 'border border-red-200 bg-red-50 text-red-700' : 'bg-indigo-50 text-indigo-800'
-              }`}
-            >
-              {pendingCourses.has(slot.course) && (
-                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
-              )}
-              {slot.course}
-              {slot.room && <span className="ml-1 text-[10px] text-indigo-400">({slot.room})</span>}
-            </button>
-          ))}
+          {onDemandSlots.map((slot) => {
+            const c = colorClass(courseColors[slot.course])
+            return (
+              <button
+                key={slot.id}
+                onClick={() => handleOnDemandTap(slot)}
+                className={`relative rounded-lg px-2.5 py-1.5 text-left text-xs ${
+                  editMode ? 'border border-red-200 bg-red-50 text-red-700' : `${c.cell} ${c.text}`
+                }`}
+              >
+                {pendingCourses.has(slot.course) && (
+                  <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
+                )}
+                {slot.course}
+                {slot.room && <span className="ml-1 text-[10px] opacity-70">({slot.room})</span>}
+              </button>
+            )
+          })}
           <button
             onClick={startAddOnDemand}
             className="rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-xs text-gray-400"
@@ -349,9 +479,9 @@ export default function TimetableTab(props: {
       </div>
 
       <p className="mt-2 px-1 text-[11px] text-gray-400">
-        学期(年度+前期/後期)を切り替えると別の時間割を登録できます。今の年度・学期は自動で選ばれ、
-        新しい年度も自動で候補に出ます。空きコマの「+」で講義を登録、オンデマンドは下の欄から。
-        講義をタップすると課題・資料・出席・成績見込みが見られます。赤い点は未提出の課題がある講義です。
+        右上の「学期切替」で年度・学期ごとの時間割を切り替えられます(今の学期は自動で選ばれます)。
+        空きコマの「+」で講義を登録、オンデマンドは下の欄から。講義をタップすると課題・資料・出席・
+        成績見込みが見られ、色も変えられます。赤い点は未提出の課題がある講義です。
       </p>
 
       {adding && (

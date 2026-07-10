@@ -70,6 +70,8 @@ export interface CourseInfo {
   textbook?: string
   bringIn?: string
   notes?: string
+  /** 時間割での表示色(courseColors.ts の色キー) */
+  color?: string
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late'
