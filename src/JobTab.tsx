@@ -3,7 +3,19 @@ import type { Company, JobEntry, JobProfile } from './types'
 import * as repo from './repo'
 import { JOB_TEMPLATES } from './jobTemplates'
 
-const ENTRY_TYPES = ['本選考', 'インターン', '説明会', 'その他']
+const ENTRY_TYPES = ['説明会', 'セミナー', 'インターン', '本選考', 'ES提出', '面接', 'OB/OG訪問', 'その他']
+
+/** 種別ごとの絵文字(スケジュール一覧の見分け用) */
+const ENTRY_TYPE_ICON: Record<string, string> = {
+  説明会: '🎤',
+  セミナー: '📚',
+  インターン: '🧑‍💻',
+  本選考: '📄',
+  ES提出: '✍️',
+  面接: '🗣️',
+  'OB/OG訪問': '🤝',
+  その他: '📌',
+}
 
 /** 締切までの残り日数(その日を含む) */
 function daysLeft(deadline: string): number {
@@ -169,10 +181,10 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
     <main className="px-4 py-4">
       <h2 className="text-base font-bold text-gray-800">就活</h2>
 
-      {/* 1. エントリー締切 */}
+      {/* 1. 就活スケジュール(説明会・セミナー・インターン・締切などを一元管理) */}
       <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">⏳ エントリー締切</h3>
+          <h3 className="text-sm font-bold text-gray-800">🗓️ 就活スケジュール</h3>
           <button
             onClick={() => setShowAddEntry(!showAddEntry)}
             className="text-xs text-indigo-600 underline"
@@ -186,7 +198,7 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
             <input
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              placeholder="企業名(例: 株式会社◯◯)"
+              placeholder="企業・イベント名(例: ◯◯社 説明会)"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
             />
             <div className="flex gap-2">
@@ -225,7 +237,8 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
 
         {activeEntries.length === 0 ? (
           <p className="mt-2 text-xs text-gray-400">
-            エントリーの締切を登録すると、ここに「あと◯日」で表示されます
+            説明会・セミナー・インターン・エントリー締切などを日付付きで登録すると、
+            近い順に「あと◯日」で表示されます
           </p>
         ) : (
           <ul className="mt-2 space-y-2">
@@ -243,7 +256,7 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
                     <p className="flex flex-wrap items-center gap-x-2">
                       <span className="truncate text-sm font-medium text-gray-800">{e.company}</span>
                       <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-                        {e.entryType}
+                        {ENTRY_TYPE_ICON[e.entryType] ?? ''} {e.entryType}
                       </span>
                     </p>
                     <p className="text-xs">
@@ -360,9 +373,9 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
         </div>
       )}
 
-      {/* 5. インターン・説明会 */}
+      {/* 5. 掲載企業のインターン・説明会(運営が登録するイベント枠) */}
       <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800">📅 インターン・説明会</h3>
+        <h3 className="text-sm font-bold text-gray-800">🏢 掲載企業のインターン・説明会</h3>
         {events.length === 0 ? (
           <p className="mt-2 text-xs text-gray-400">🚧 掲載準備中です</p>
         ) : (
