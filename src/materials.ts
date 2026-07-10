@@ -3,6 +3,10 @@ import { supabase } from './supabase'
 export interface Course {
   id: number
   name: string
+  /** 講義の終了日(Unix秒)。0 のときは終了日なし。時間割の候補で終了済みを除外するのに使う */
+  enddate?: number
+  /** 0 のとき非表示コース */
+  visible?: number
 }
 
 export interface MaterialFile {

@@ -74,8 +74,15 @@ Deno.serve(async (req) => {
         userid: String(site.userid),
       })
       return json({
+        // enddate/visible も返す(時間割の講義候補で「終了済み」を除外するため)。
+        // enddate は Unix秒。0 のときは終了日なし。visible=0 は非表示コース。
         // deno-lint-ignore no-explicit-any
-        courses: (courses as any[]).map((c) => ({ id: c.id, name: c.fullname })),
+        courses: (courses as any[]).map((c) => ({
+          id: c.id,
+          name: c.fullname,
+          enddate: c.enddate ?? 0,
+          visible: c.visible ?? 1,
+        })),
       })
     }
 

@@ -1,6 +1,7 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { Task, TimetableSlot } from './types'
 import * as repo from './repo'
+import { fetchCourses } from './materials'
 import CourseDetail from './CourseDetail'
 
 const DAYS = ['月', '火', '水', '木', '金', '土']
@@ -22,14 +23,38 @@ export default function TimetableTab(props: {
   const [course, setCourse] = useState('')
   const [room, setRoom] = useState('')
   const [selectedCourse, setSelectedCourse] = useState<string | null>(initialCourse ?? null)
+  // Moodleに履修登録してある講義名(課題の有無に関わらず全部)。終了済み・非表示は除外
+  const [enrolledCourses, setEnrolledCourses] = useState<string[]>([])
 
-  // 講義名の候補: Moodleの課題から取れた講義名 + 既存の時間割
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const courses = await fetchCourses()
+        const now = Date.now()
+        const names = courses
+          // enddate は Unix秒。0/未設定なら終了日なし。過去なら「授業が終了」なので除外。
+          // visible=0(非表示)の講義も候補から除く
+          .filter((c) => (c.visible ?? 1) !== 0 && (!c.enddate || c.enddate * 1000 > now))
+          .map((c) => c.name)
+        if (!cancelled) setEnrolledCourses(names)
+      } catch {
+        // 未連携・通信失敗時は候補なしのまま(課題・時間割由来の候補は従来どおり出る)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // 講義名の候補: Moodle履修中の全講義 + 課題から取れた講義名 + 既存の時間割
   const knownCourses = useMemo(() => {
     const s = new Set<string>()
+    for (const name of enrolledCourses) s.add(name)
     for (const t of tasks) if (t.course) s.add(t.course)
     for (const slot of slots) s.add(slot.course)
     return [...s].sort((a, b) => a.localeCompare(b, 'ja'))
-  }, [tasks, slots])
+  }, [enrolledCourses, tasks, slots])
 
   const slotAt = (day: number, period: number) =>
     slots.find((s) => s.day === day && s.period === period)
