@@ -735,16 +735,23 @@ function AllTab(props: {
             完了済み {doneTasks.length}件 {showDone ? 'を隠す' : 'を表示'}
           </button>
           {showDone && (
-            <ul className="mt-2 space-y-2 opacity-60">
+            <ul className="mt-2 space-y-2 opacity-70">
               {doneTasks.map((task) => (
                 <li key={task.id} className="flex items-center gap-3 rounded-xl bg-white p-3">
                   <input
                     type="checkbox"
                     checked
                     onChange={() => toggleDone(task.id)}
-                    className="h-5 w-5 accent-indigo-600"
+                    className="h-5 w-5 shrink-0 accent-indigo-600"
                   />
-                  <span className="truncate text-sm text-gray-500 line-through">{task.title}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-gray-500 line-through">
+                      {task.title}
+                    </span>
+                    {task.course && (
+                      <span className="block truncate text-xs text-gray-400">{task.course}</span>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>

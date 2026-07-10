@@ -116,16 +116,19 @@ export default function TimetableTab(props: {
               </div>
               {DAYS.map((_, day) => {
                 const slot = slotAt(day, p)
+                const isSelected = adding?.day === day && adding?.period === p
                 return (
                   <button
                     key={`${day}-${p}`}
                     onClick={() => handleCellTap(day, p)}
-                    className={`relative min-h-16 rounded-lg p-1 text-left align-top ${
-                      slot
-                        ? editMode
-                          ? 'border border-red-200 bg-red-50'
-                          : 'bg-indigo-50'
-                        : 'border border-dashed border-gray-200 bg-white'
+                    className={`relative min-h-16 rounded-lg p-1 text-left align-top transition ${
+                      isSelected
+                        ? 'bg-indigo-100 ring-2 ring-indigo-500'
+                        : slot
+                          ? editMode
+                            ? 'border border-red-200 bg-red-50'
+                            : 'bg-indigo-50'
+                          : 'border border-dashed border-gray-200 bg-white'
                     }`}
                   >
                     {slot ? (
@@ -140,6 +143,10 @@ export default function TimetableTab(props: {
                           <span className="mt-0.5 block text-[9px] text-indigo-400">{slot.room}</span>
                         )}
                       </>
+                    ) : isSelected ? (
+                      <span className="flex h-full items-center justify-center text-[10px] font-bold text-indigo-600">
+                        選択中
+                      </span>
                     ) : (
                       <span className="flex h-full items-center justify-center text-gray-200">+</span>
                     )}
@@ -157,16 +164,28 @@ export default function TimetableTab(props: {
       </p>
 
       {adding && (
-        <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-800">
-            {DAYS[adding.day]}曜{adding.period}限に追加
-          </h3>
-          <input
-            value={course}
-            onChange={(e) => setCourse(e.target.value)}
-            placeholder="講義名(Moodleと同じ名前推奨)"
-            className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          />
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
+          onClick={() => setAdding(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl bg-white p-4 sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
+            <h3 className="text-center text-sm font-bold text-gray-800">
+              <span className="mr-1 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-700">
+                {DAYS[adding.day]}曜 {adding.period}限
+              </span>
+              に授業を追加
+            </h3>
+            <input
+              value={course}
+              onChange={(e) => setCourse(e.target.value)}
+              autoFocus
+              placeholder="講義名(Moodleと同じ名前推奨)"
+              className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            />
           {(() => {
             // 部分一致で候補を出す(「Web入門」→「Web入門 2026」がヒット)
             const q = course.trim().toLowerCase()
@@ -210,6 +229,7 @@ export default function TimetableTab(props: {
             >
               追加
             </button>
+            </div>
           </div>
         </div>
       )}
