@@ -17,6 +17,7 @@ import TimetableTab from './TimetableTab'
 import JobTab from './JobTab'
 import ProfileForm from './ProfileForm'
 import AvatarIcon from './AvatarIcon'
+import WidgetPreview from './WidgetPreview'
 import { UNIVERSITIES } from './universities'
 
 // calendar は下タブには出さないサブ画面(「すべて」の📅から開く)
@@ -482,6 +483,8 @@ function Home() {
           onSave={saveSettingsAll}
           onFlash={flash}
           onConnect={handleConnect}
+          tasks={tasks}
+          slots={slots}
         />
       )}
 
@@ -1029,8 +1032,10 @@ function SettingsTab(props: {
   onSave: (s: Settings) => void
   onFlash: (text: string) => void
   onConnect: (moodleUrl: string, username: string, password: string) => Promise<void>
+  tasks: Task[]
+  slots: TimetableSlot[]
 }) {
-  const { settings, onSave, onFlash, onConnect } = props
+  const { settings, onSave, onFlash, onConnect, tasks, slots } = props
   const [minutes, setMinutes] = useState(settings.minutesPerDay)
   const [notifyTime, setNotifyTime] = useState(settings.notifyTime)
   const [enabling, setEnabling] = useState(false)
@@ -1120,6 +1125,23 @@ function SettingsTab(props: {
       </div>
 
       <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
+
+      {/* Premium(準備中): ホーム画面ウィジェットの完成イメージを見せる */}
+      <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-violet-800">👑 UniPort Premium</h3>
+          <span className="rounded bg-violet-200 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">
+            準備中
+          </span>
+        </div>
+        <p className="mt-1 text-xs text-violet-700">
+          ホーム画面ウィジェットで、次の授業・課題の締切・就活の予定がひと目で分かります。
+        </p>
+        <WidgetPreview tasks={tasks} slots={slots} settings={settings} />
+        <p className="mt-3 text-[11px] text-violet-500">
+          ※ウィジェットはアプリ版(準備中)で提供予定です。上は今のあなたのデータでの表示イメージです。
+        </p>
+      </div>
 
       <CollapsibleSection icon="📄" title="規約">
         <a href="privacy.html" target="_blank" rel="noopener" className="text-sm text-indigo-600 underline">

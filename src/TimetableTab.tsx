@@ -4,18 +4,10 @@ import * as repo from './repo'
 import { fetchCourses } from './materials'
 import { SEMESTER_TERMS, defaultSemester, parseSemester, yearOptions } from './semester'
 import { colorClass } from './courseColors'
+import { PERIOD_TIMES } from './periods'
 import CourseDetail from './CourseDetail'
 
 const PERIODS = [1, 2, 3, 4, 5, 6]
-// 標準的な90分授業の時限時刻(参考表示)。大学によって多少前後する
-const PERIOD_TIMES: Record<number, [string, string]> = {
-  1: ['08:50', '10:20'],
-  2: ['10:30', '12:00'],
-  3: ['13:00', '14:30'],
-  4: ['14:40', '16:10'],
-  5: ['16:20', '17:50'],
-  6: ['18:00', '19:30'],
-}
 // オンデマンド講義は曜日・時限を持たないため、day に専用の値(グリッド外)を割り当てて
 // timetable_slots テーブルをそのまま流用する。period は登録順(1, 2, 3...)。
 // 日曜は day=7(6はオンデマンドで埋まっているため衝突を避ける)

@@ -457,6 +457,7 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
           </span>
         </h3>
         <ul className="mt-1 space-y-0.5 text-xs text-slate-500">
+          <li>・ホーム画面ウィジェット</li>
           <li>・AI添削 無制限</li>
           <li>・面接練習(AIロールプレイ)</li>
           <li>・企業分析レポート</li>
