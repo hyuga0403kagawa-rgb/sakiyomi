@@ -485,6 +485,7 @@ function Home() {
           onConnect={handleConnect}
           tasks={tasks}
           slots={slots}
+          onToggle={toggleDone}
         />
       )}
 
@@ -1034,8 +1035,9 @@ function SettingsTab(props: {
   onConnect: (moodleUrl: string, username: string, password: string) => Promise<void>
   tasks: Task[]
   slots: TimetableSlot[]
+  onToggle: (id: string) => void
 }) {
-  const { settings, onSave, onFlash, onConnect, tasks, slots } = props
+  const { settings, onSave, onFlash, onConnect, tasks, slots, onToggle } = props
   const [minutes, setMinutes] = useState(settings.minutesPerDay)
   const [notifyTime, setNotifyTime] = useState(settings.notifyTime)
   const [enabling, setEnabling] = useState(false)
@@ -1135,9 +1137,9 @@ function SettingsTab(props: {
           </span>
         </div>
         <p className="mt-1 text-xs text-violet-700">
-          ホーム画面ウィジェットで、次の授業・課題の締切・就活の予定がひと目で分かります。
+          ホーム画面ウィジェットで、やること・時間割がひと目で。下のボタンで種類を切り替えられます。
         </p>
-        <WidgetPreview tasks={tasks} slots={slots} settings={settings} />
+        <WidgetPreview tasks={tasks} slots={slots} settings={settings} onToggle={onToggle} />
         <p className="mt-3 text-[11px] text-violet-500">
           ※ウィジェットはアプリ版(準備中)で提供予定です。上は今のあなたのデータでの表示イメージです。
         </p>

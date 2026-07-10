@@ -5,30 +5,10 @@ import { fetchCourses } from './materials'
 import { SEMESTER_TERMS, defaultSemester, parseSemester, yearOptions } from './semester'
 import { colorClass } from './courseColors'
 import { PERIOD_TIMES } from './periods'
+import { DAY_LABEL, ON_DEMAND_DAY, visibleDayDefs } from './timetableDays'
 import CourseDetail from './CourseDetail'
 
 const PERIODS = [1, 2, 3, 4, 5, 6]
-// オンデマンド講義は曜日・時限を持たないため、day に専用の値(グリッド外)を割り当てて
-// timetable_slots テーブルをそのまま流用する。period は登録順(1, 2, 3...)。
-// 日曜は day=7(6はオンデマンドで埋まっているため衝突を避ける)
-const ON_DEMAND_DAY = 6
-const WEEKDAY_DEFS = [
-  { label: '月', day: 0 },
-  { label: '火', day: 1 },
-  { label: '水', day: 2 },
-  { label: '木', day: 3 },
-  { label: '金', day: 4 },
-]
-const SAT_DEF = { label: '土', day: 5 }
-const SUN_DEF = { label: '日', day: 7 }
-const DAY_LABEL: Record<number, string> = { 0: '月', 1: '火', 2: '水', 3: '木', 4: '金', 5: '土', 7: '日' }
-
-/** 表示設定に応じた曜日カラムの定義 */
-function visibleDayDefs(mode: TimetableDays): { label: string; day: number }[] {
-  if (mode === 'weekday') return WEEKDAY_DEFS
-  if (mode === 'satsun') return [...WEEKDAY_DEFS, SAT_DEF, SUN_DEF]
-  return [...WEEKDAY_DEFS, SAT_DEF]
-}
 
 const DISPLAY_DAYS_LABEL: Record<TimetableDays, string> = {
   weekday: '平日のみ',
