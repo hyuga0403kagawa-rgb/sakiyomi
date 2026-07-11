@@ -115,6 +115,33 @@ export interface JobNote {
 /** 自己分析メモのカテゴリ */
 export const JOB_NOTE_CATEGORIES = ['ガクチカ', '自己PR', '強み・弱み', '志望動機', 'その他'] as const
 
+/** 成績(手入力・GPA計算用) */
+export interface Grade {
+  id: string
+  course: string
+  /** 学期 "2026 1学期" 形式(任意) */
+  term?: string
+  /** 秀/優/良/可/不可 のいずれか */
+  grade: string
+  credits: number
+}
+
+/** 成績段階とGP。不可以外を「取得(合格)」とみなす */
+export const GRADE_SCALE = [
+  { key: '秀', gp: 4 },
+  { key: '優', gp: 3 },
+  { key: '良', gp: 2 },
+  { key: '可', gp: 1 },
+  { key: '不可', gp: 0 },
+] as const
+
+export function gradeGp(grade: string): number {
+  return GRADE_SCALE.find((g) => g.key === grade)?.gp ?? 0
+}
+export function gradePassed(grade: string): boolean {
+  return grade !== '不可'
+}
+
 /** 就活: 学生側プロフィール(マッチング用) */
 export interface JobProfile {
   interests?: string

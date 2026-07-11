@@ -4,6 +4,7 @@ import type {
   AttendanceStatus,
   Company,
   CourseInfo,
+  Grade,
   JobEntry,
   JobNote,
   JobProfile,
@@ -350,6 +351,52 @@ export async function fetchCompanies(): Promise<Company[]> {
     isSponsored: r.is_sponsored,
     matchTags: r.match_tags ?? undefined,
   }))
+}
+
+// ---------- 成績 ----------
+
+export async function fetchGrades(): Promise<Grade[]> {
+  const { data, error } = await supabase
+    .from('grades')
+    .select('*')
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data.map((r) => ({
+    id: r.id,
+    course: r.course,
+    term: r.term ?? undefined,
+    grade: r.grade,
+    credits: Number(r.credits),
+  }))
+}
+
+export async function addGrade(g: Omit<Grade, 'id'>): Promise<Grade> {
+  const { data, error } = await supabase
+    .from('grades')
+    .insert({ course: g.course, term: g.term ?? null, grade: g.grade, credits: g.credits })
+    .select()
+    .single()
+  if (error) throw error
+  return {
+    id: data.id,
+    course: data.course,
+    term: data.term ?? undefined,
+    grade: data.grade,
+    credits: Number(data.credits),
+  }
+}
+
+export async function updateGrade(g: Grade): Promise<void> {
+  const { error } = await supabase
+    .from('grades')
+    .update({ course: g.course, term: g.term ?? null, grade: g.grade, credits: g.credits })
+    .eq('id', g.id)
+  if (error) throw error
+}
+
+export async function deleteGrade(id: string): Promise<void> {
+  const { error } = await supabase.from('grades').delete().eq('id', id)
+  if (error) throw error
 }
 
 export async function fetchSettings(): Promise<Settings> {

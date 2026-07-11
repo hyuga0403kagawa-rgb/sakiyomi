@@ -18,6 +18,7 @@ import JobTab from './JobTab'
 import ProfileForm from './ProfileForm'
 import AvatarIcon from './AvatarIcon'
 import WidgetPreview from './WidgetPreview'
+import GradesScreen from './GradesScreen'
 import { UNIVERSITIES } from './universities'
 
 // calendar は下タブには出さないサブ画面(「すべて」の📅から開く)
@@ -1071,6 +1072,7 @@ function SettingsTab(props: {
   const [enabling, setEnabling] = useState(false)
   const [email, setEmail] = useState<string | null>(null)
   const [showProfileDetail, setShowProfileDetail] = useState(false)
+  const [showGrades, setShowGrades] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null))
@@ -1116,6 +1118,16 @@ function SettingsTab(props: {
     }
   }
 
+  if (showGrades) {
+    return (
+      <GradesScreen
+        onBack={() => setShowGrades(false)}
+        onFlash={onFlash}
+        courseSuggestions={[...new Set(slots.map((s) => s.course))].sort((a, b) => a.localeCompare(b, 'ja'))}
+      />
+    )
+  }
+
   if (showProfileDetail) {
     return (
       <ProfileDetailScreen
@@ -1153,6 +1165,18 @@ function SettingsTab(props: {
           ✏️ プロフィール詳細
         </button>
       </div>
+
+      <button
+        onClick={() => setShowGrades(true)}
+        className="mt-4 flex w-full items-center gap-2 rounded-xl bg-white p-4 text-left shadow-sm"
+      >
+        <span className="text-lg">📊</span>
+        <span className="flex-1">
+          <span className="block text-sm font-bold text-gray-800">成績・GPA</span>
+          <span className="block text-xs text-gray-400">手入力で成績を記録してGPAを計算</span>
+        </span>
+        <span className="text-gray-300">›</span>
+      </button>
 
       <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
 
