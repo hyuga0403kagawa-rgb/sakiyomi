@@ -25,6 +25,18 @@ import { UNIVERSITIES } from './universities'
 type Tab = 'today' | 'timetable' | 'all' | 'calendar' | 'job' | 'settings'
 type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 
+// 香川大学生向けのポータルリンク
+const ICOMPASS_URL = 'https://attendsyst.kagawa-u.ac.jp/mobile/g/'
+const KADASAPO_URL = 'https://kyoumusyst.kagawa-u.ac.jp/campusweb/top.do'
+
+/** 香川大生かどうか。moodleUrl はデフォルト値が香川大なので、香川Moodleに
+ *  連携済み、またはプロフィールの大学が香川、で判定する */
+function isKagawaStudent(s: Settings): boolean {
+  return Boolean(
+    (s.moodleToken && s.moodleUrl?.includes('kagawa-u.ac.jp')) || s.university?.includes('香川'),
+  )
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(false)
@@ -389,6 +401,22 @@ function Home() {
               {recommendation.text}
             </p>
           </div>
+
+          {isKagawaStudent(settings) && (
+            <a
+              href={ICOMPASS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex items-center gap-2 rounded-xl bg-white p-3 shadow-sm"
+            >
+              <span className="text-lg">📲</span>
+              <span className="flex-1">
+                <span className="block text-sm font-medium text-gray-800">iCompass</span>
+                <span className="block text-xs text-gray-400">出席の登録・確認(香川大学)</span>
+              </span>
+              <span className="text-gray-300">↗</span>
+            </a>
+          )}
 
           {(() => {
             // 今日の授業(day: 0=月〜5=土, 7=日)。現在の学期のコマのみ表示
@@ -1127,6 +1155,25 @@ function SettingsTab(props: {
       </div>
 
       <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
+
+      {isKagawaStudent(settings) && (
+        <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-800">🎓 大学のリンク</h3>
+          <a
+            href={KADASAPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center gap-2 rounded-lg border border-gray-100 p-2"
+          >
+            <span className="text-lg">📋</span>
+            <span className="flex-1">
+              <span className="block text-sm font-medium text-gray-800">カダサポ</span>
+              <span className="block text-xs text-gray-400">履修登録・成績など(香川大学)</span>
+            </span>
+            <span className="text-gray-300">↗</span>
+          </a>
+        </div>
+      )}
 
       {/* Premium(準備中): ホーム画面ウィジェットの完成イメージを見せる */}
       <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4">
