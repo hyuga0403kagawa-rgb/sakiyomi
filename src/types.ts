@@ -138,8 +138,13 @@ export const GRADE_SCALE = [
 export function gradeGp(grade: string): number {
   return GRADE_SCALE.find((g) => g.key === grade)?.gp ?? 0
 }
+/** GPA計算の対象(秀優良可不可)か。合格/認定などの合否科目は対象外 */
+export function gradeInGpa(grade: string): boolean {
+  return GRADE_SCALE.some((g) => g.key === grade)
+}
+/** 単位を取得(合格)したか。不可/不 のみ不合格 */
 export function gradePassed(grade: string): boolean {
-  return grade !== '不可'
+  return grade !== '不可' && grade !== '不'
 }
 
 /** 就活: 学生側プロフィール(マッチング用) */

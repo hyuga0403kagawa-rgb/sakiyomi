@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Grade } from './types'
-import { GRADE_SCALE, gradeGp, gradePassed } from './types'
+import { gradeGp, gradeInGpa, gradePassed } from './types'
 import * as repo from './repo'
 import { SEMESTER_TERMS, defaultSemester, parseSemester, yearOptions } from './semester'
 
@@ -10,19 +10,24 @@ const GRADE_BADGE: Record<string, string> = {
   良: 'bg-green-100 text-green-700',
   可: 'bg-amber-100 text-amber-700',
   不可: 'bg-red-100 text-red-600',
+  合格: 'bg-slate-100 text-slate-600',
 }
 
-// '不可' を '可' より先に判定できるよう並び順に注意
+/** 手動選択・下書き編集で選べる成績(合格=合否科目も含む) */
+const SELECTABLE_GRADES = ['秀', '優', '良', '可', '不可', '合格']
+
+/** カダサポの評価表記をアプリの表記に正規化。未知/未確定は '' を返す */
+function normalizeGrade(s: string): string {
+  const v = s.trim()
+  if (!v) return ''
+  if (v === '不' || v === '不可' || v === '不合格') return '不可'
+  if (v === '合' || v === '合格' || v === '認' || v === '認定' || v === 'P') return '合格'
+  if (['秀', '優', '良', '可'].includes(v)) return v
+  return ''
+}
+
+// '不可' を '可' より先に判定(簡易フォールバック用)
 const GRADE_RE = /不可|秀|優|良|可/
-
-function detectTermKey(line: string): string | null {
-  if (/1\s*学期|前期|春学期/.test(line)) return '1学期'
-  if (/2\s*学期|後期|秋学期/.test(line)) return '2学期'
-  if (/3\s*学期/.test(line)) return '3学期'
-  if (/4\s*学期/.test(line)) return '4学期'
-  if (/通年/.test(line)) return '通年'
-  return null
-}
 
 interface DraftGrade {
   course: string
@@ -32,27 +37,39 @@ interface DraftGrade {
 }
 
 /**
- * カダサポ等の成績一覧テキストを行ごとに解析する(ヒューリスティック)。
- * 「年度・学期」の見出し行を見つけたら以降の行にその学期を割り当てる。
- * 成績段階(秀優良可不可)を含む行を成績として扱う。あくまで下書きで、UIで手直し前提。
+ * 成績一覧テキストを解析する。
+ * カダサポはタブ区切りの表(科目名 \t 単位 \t 点数 \t 評価 \t 年 \t 学期)なので、
+ * 末尾2列を年・学期、その前を評価、2列目を単位として読む。評価が空欄の科目
+ * (まだ成績が出ていない)はスキップ=カウントしない。カテゴリ見出し行も無視。
+ * タブが無い簡易な貼り付けは行ごとのヒューリスティックにフォールバック。
  */
 function parseGradesText(text: string, defYear: number, defTerm: string): DraftGrade[] {
   const rows: DraftGrade[] = []
-  let curYear = defYear
-  let curTerm = defTerm
   for (const raw of text.split(/\r?\n/)) {
-    const line = raw.replace(/　/g, ' ').trim()
-    if (!line) continue
-    const gm = line.match(GRADE_RE)
-    const yearM = line.match(/(20\d{2})\s*年?度?/)
-    const tk = detectTermKey(line)
-    if (!gm) {
-      if (yearM) curYear = Number(yearM[1])
-      if (tk) curTerm = tk
-      continue
+    const line = raw.replace(/\r/, '')
+    if (!line.trim()) continue
+
+    // --- カダサポ形式(タブ区切り) ---
+    const cells = line.split('\t')
+    if (cells.length >= 5) {
+      const yearCell = cells[cells.length - 2].trim()
+      if (/^20\d{2}$/.test(yearCell)) {
+        const term = cells[cells.length - 1].trim()
+        const grade = normalizeGrade(cells[cells.length - 3])
+        const course = cells[0].trim()
+        if (grade && course) {
+          const creditsCell = (cells[1] ?? '').trim()
+          const credits = /^\d+(?:\.\d)?$/.test(creditsCell) ? Number(creditsCell) : 2
+          rows.push({ course, grade, credits, term: `${yearCell} ${term}` })
+        }
+        continue // 認識できたカダサポ行(未確定含む)はフォールバックしない
+      }
     }
+
+    // --- 簡易形式のフォールバック ---
+    const gm = line.match(GRADE_RE)
+    if (!gm) continue
     const grade = gm[0]
-    // 単位数: 「◯単位」優先、無ければ年(4桁)以外の小さな数の最後
     let credits = 2
     const cm = line.match(/(\d+(?:\.\d)?)\s*単位/)
     if (cm) {
@@ -64,20 +81,9 @@ function parseGradesText(text: string, defYear: number, defTerm: string): DraftG
         .filter((n) => n > 0 && n <= 10)
       if (nums.length) credits = nums[nums.length - 1]
     }
-    // 講義名: 成績トークンより前。末尾に「空白+数字(=単位)」があれば除く。
-    // 「電気回路1」のように名前に付いた数字は空白が無いので残る。
-    let course = line.slice(0, line.indexOf(grade))
-    course = course.replace(/[|｜\t]+/g, ' ').trim()
+    let course = line.slice(0, line.indexOf(grade)).replace(/[|｜\t]+/g, ' ').trim()
     course = course.replace(/\s+\d+(?:\.\d)?\s*(単位)?$/, '').trim()
-    if (!course) {
-      course = line
-        .replace(GRADE_RE, ' ')
-        .replace(/\d+(?:\.\d)?\s*単位?/g, ' ')
-        .replace(/[|｜\t]+/g, ' ')
-        .replace(/\s{2,}/g, ' ')
-        .trim()
-    }
-    if (course) rows.push({ course, grade, credits, term: `${curYear} ${curTerm}` })
+    if (course) rows.push({ course, grade, credits, term: `${defYear} ${defTerm}` })
   }
   return rows
 }
@@ -141,9 +147,12 @@ export default function GradesScreen(props: {
 
   const summary = useMemo(() => {
     const total = grades.reduce((s, g) => s + g.credits, 0)
-    const num = grades.reduce((s, g) => s + gradeGp(g.grade) * g.credits, 0)
+    // GPAは秀優良可不可のみ(合格などの合否科目は除外)
+    const gpaList = grades.filter((g) => gradeInGpa(g.grade))
+    const gpaCredits = gpaList.reduce((s, g) => s + g.credits, 0)
+    const num = gpaList.reduce((s, g) => s + gradeGp(g.grade) * g.credits, 0)
     const earned = grades.filter((g) => gradePassed(g.grade)).reduce((s, g) => s + g.credits, 0)
-    return { gpa: total > 0 ? num / total : null, total, earned }
+    return { gpa: gpaCredits > 0 ? num / gpaCredits : null, total, earned }
   }, [grades])
 
   const byTerm = useMemo(() => {
@@ -259,15 +268,15 @@ export default function GradesScreen(props: {
               ))}
             </datalist>
             <div className="flex flex-wrap items-center gap-1.5">
-              {GRADE_SCALE.map((g) => (
+              {SELECTABLE_GRADES.map((g) => (
                 <button
-                  key={g.key}
-                  onClick={() => setGrade(g.key)}
+                  key={g}
+                  onClick={() => setGrade(g)}
                   className={`rounded-full px-3 py-1 text-sm ${
-                    grade === g.key ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600'
+                    grade === g ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600'
                   }`}
                 >
-                  {g.key}
+                  {g}
                 </button>
               ))}
               <label className="ml-auto flex items-center gap-1 text-xs text-gray-500">
@@ -350,9 +359,9 @@ export default function GradesScreen(props: {
                         onChange={(e) => updateDraft(i, { grade: e.target.value })}
                         className="rounded border border-gray-200 px-1.5 py-1 text-sm text-gray-600"
                       >
-                        {GRADE_SCALE.map((g) => (
-                          <option key={g.key} value={g.key}>
-                            {g.key}
+                        {SELECTABLE_GRADES.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
                           </option>
                         ))}
                       </select>
