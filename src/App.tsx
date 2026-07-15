@@ -1075,6 +1075,7 @@ function SettingsTab(props: {
   const { settings, onSave, onFlash, onConnect, tasks, slots, onToggle } = props
   const [minutes, setMinutes] = useState(settings.minutesPerDay)
   const [notifyTime, setNotifyTime] = useState(settings.notifyTime)
+  const [classReminder, setClassReminder] = useState(settings.classReminderMinutes ?? 0)
   const [enabling, setEnabling] = useState(false)
   const [email, setEmail] = useState<string | null>(null)
   const [showProfileDetail, setShowProfileDetail] = useState(false)
@@ -1089,6 +1090,7 @@ function SettingsTab(props: {
       ...settings,
       minutesPerDay: minutes,
       notifyTime,
+      classReminderMinutes: classReminder || undefined,
     })
 
   const handleEnablePush = async () => {
@@ -1255,6 +1257,25 @@ function SettingsTab(props: {
             />
             <span className="mt-1 block text-xs text-gray-500">
               毎日この時刻に、未提出課題のまとめをプッシュ通知します
+            </span>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">授業開始の通知</span>
+            <select
+              value={classReminder}
+              onChange={(e) => setClassReminder(Number(e.target.value))}
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            >
+              <option value={0}>オフ</option>
+              {[5, 10, 15, 20, 25, 30].map((m) => (
+                <option key={m} value={m}>
+                  {m}分前
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-gray-500">
+              時間割の授業が始まる◯分前にプッシュ通知します(下の「この端末で通知を受け取る」をオンにしてください)
             </span>
           </label>
 
