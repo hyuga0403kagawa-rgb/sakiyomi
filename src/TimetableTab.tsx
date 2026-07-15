@@ -121,8 +121,10 @@ export default function TimetableTab(props: {
   settings: Settings
   onSaveSettings: (s: Settings) => void
   initialCourse?: string | null
+  /** 「時間割」タブを押すたびに増える。増えたら追加画面・講義詳細を閉じてグリッドに戻す */
+  resetSignal?: number
 }) {
-  const { tasks, slots, onSlotsChange, onToggle, onFlash, settings, onSaveSettings, initialCourse } = props
+  const { tasks, slots, onSlotsChange, onToggle, onFlash, settings, onSaveSettings, initialCourse, resetSignal } = props
   const timetableDays = settings.timetableDays ?? 'sat'
   const semester = settings.currentSemester ?? defaultSemester()
   const { year, term } = parseSemester(semester)
@@ -144,6 +146,14 @@ export default function TimetableTab(props: {
   useEffect(() => {
     repo.fetchCourseColors().then(setCourseColors).catch(() => {})
   }, [])
+
+  // 「時間割」タブが押されたら追加画面・講義詳細を閉じてグリッドに戻す(初回=undefinedは無視)
+  useEffect(() => {
+    if (resetSignal === undefined) return
+    setAdding(null)
+    setSelectedCourse(null)
+    setShowSemesterModal(false)
+  }, [resetSignal])
   // Moodleに履修登録してある講義名(課題の有無に関わらず全部)を、終了済み/非表示かどうかで分けて持つ。
   // 大学Moodleの enddate/visible が実態とズレている場合があるため、除外した講義も
   // 「終了済み・非表示の講義も表示」から後で選べるようにする(でないと原因が分からず詰む)
@@ -286,6 +296,85 @@ export default function TimetableTab(props: {
     )
   }
 
+  // 授業の追加は全画面(左上「時間割に戻る」/「時間割」タブ再タップで戻る)
+  if (adding) {
+    const q = normalizeForSearch(course.trim())
+    const matched = knownCourses.filter((c) => c !== course && (!q || normalizeForSearch(c).includes(q)))
+    const suggestions = q ? matched.slice(0, 6) : matched
+    const excludedMatches = showExcluded
+      ? hiddenCourses.filter((c) => c !== course && (!q || normalizeForSearch(c).includes(q)))
+      : []
+    return (
+      <main className="px-4 py-4">
+        <button onClick={() => setAdding(null)} className="text-sm text-indigo-600 underline">
+          ← 時間割に戻る
+        </button>
+        <h2 className="mt-3 text-base font-bold text-gray-800">
+          {adding.day === ON_DEMAND_DAY
+            ? '🖥️ オンデマンドに授業を追加'
+            : `${DAY_LABEL[adding.day]}曜 ${adding.period}限に授業を追加`}
+        </h2>
+
+        <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+          <input
+            value={course}
+            onChange={(e) => setCourse(e.target.value)}
+            placeholder="講義名(Moodleと同じ名前推奨)"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+          {(suggestions.length > 0 || excludedMatches.length > 0) && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {suggestions.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCourse(c)}
+                  className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700"
+                >
+                  {c}
+                </button>
+              ))}
+              {excludedMatches.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCourse(c)}
+                  className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500"
+                  title="Moodle上で終了済み/非表示になっている講義です"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+          {hiddenCourses.length > 0 && (
+            <button
+              onClick={() => setShowExcluded(!showExcluded)}
+              className="mt-1.5 text-[11px] text-gray-400 underline"
+            >
+              {showExcluded
+                ? '終了済み・非表示の講義を隠す'
+                : `終了済み・非表示の講義も表示(${hiddenCourses.length}件)`}
+            </button>
+          )}
+          <input
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            placeholder={adding.day === ON_DEMAND_DAY ? '配信サイト等のメモ(任意)' : '教室(任意)'}
+            className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+          <p className="mt-1 text-[11px] text-gray-400">
+            候補から選ぶと、課題や資料が自動でこの講義に紐づきます
+          </p>
+          <button
+            onClick={addSlot}
+            className="mt-3 w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-bold text-white"
+          >
+            追加
+          </button>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="px-3 py-4">
       <div className="flex items-center justify-between px-1">
@@ -373,20 +462,17 @@ export default function TimetableTab(props: {
               </div>
               {dayDefs.map(({ day }) => {
                 const slot = slotAt(day, p)
-                const isSelected = adding?.day === day && adding?.period === p
                 const c = slot ? colorClass(courseColors[slot.course]) : null
                 return (
                   <button
                     key={`${day}-${p}`}
                     onClick={() => handleCellTap(day, p)}
                     className={`relative flex min-h-16 flex-col rounded-lg p-1 text-left transition ${
-                      isSelected
-                        ? 'bg-indigo-100 ring-2 ring-indigo-500'
-                        : slot
-                          ? editMode
-                            ? 'border border-red-200 bg-red-50'
-                            : c!.cell
-                          : 'border border-dashed border-gray-200 bg-white'
+                      slot
+                        ? editMode
+                          ? 'border border-red-200 bg-red-50'
+                          : c!.cell
+                        : 'border border-dashed border-gray-200 bg-white'
                     }`}
                   >
                     {slot ? (
@@ -405,10 +491,6 @@ export default function TimetableTab(props: {
                           {slot.room || '未登録'}
                         </span>
                       </>
-                    ) : isSelected ? (
-                      <span className="flex h-full items-center justify-center text-[10px] font-bold text-indigo-600">
-                        選択中
-                      </span>
                     ) : (
                       <span className="flex h-full items-center justify-center text-gray-200">+</span>
                     )}
@@ -456,109 +538,6 @@ export default function TimetableTab(props: {
         成績見込みが見られ、色も変えられます。赤い点は未提出の課題がある講義です。
       </p>
 
-      {adding && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
-          onClick={() => setAdding(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-t-2xl bg-white p-4 sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
-            <h3 className="text-center text-sm font-bold text-gray-800">
-              {adding.day === ON_DEMAND_DAY ? (
-                <span className="mr-1 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-700">
-                  🖥️ オンデマンド
-                </span>
-              ) : (
-                <span className="mr-1 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-700">
-                  {DAY_LABEL[adding.day]}曜 {adding.period}限
-                </span>
-              )}
-              に授業を追加
-            </h3>
-            <input
-              value={course}
-              onChange={(e) => setCourse(e.target.value)}
-              autoFocus
-              placeholder="講義名(Moodleと同じ名前推奨)"
-              className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            />
-          {(() => {
-            // 部分一致で候補を出す(「Web入門」→「Web入門 2026」がヒット、
-            // 「電気回路1」→「電気回路Ⅰ」のようにローマ数字/全角数字の表記違いもヒット)
-            const q = normalizeForSearch(course.trim())
-            // 何も入力していない時は全件表示(登録講義を全部候補に出したいという要望のため)。
-            // 入力して絞り込んでいる時だけ6件に抑えて見やすくする
-            const matched = knownCourses.filter(
-              (c) => c !== course && (!q || normalizeForSearch(c).includes(q)),
-            )
-            const suggestions = q ? matched.slice(0, 6) : matched
-            const excludedMatches = showExcluded
-              ? hiddenCourses.filter((c) => c !== course && (!q || normalizeForSearch(c).includes(q)))
-              : []
-            if (suggestions.length === 0 && excludedMatches.length === 0) return null
-            return (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {suggestions.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setCourse(c)}
-                    className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700"
-                  >
-                    {c}
-                  </button>
-                ))}
-                {excludedMatches.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setCourse(c)}
-                    className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500"
-                    title="Moodle上で終了済み/非表示になっている講義です"
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            )
-          })()}
-          {hiddenCourses.length > 0 && (
-            <button
-              onClick={() => setShowExcluded(!showExcluded)}
-              className="mt-1.5 text-[11px] text-gray-400 underline"
-            >
-              {showExcluded
-                ? '終了済み・非表示の講義を隠す'
-                : `終了済み・非表示の講義も表示(${hiddenCourses.length}件)`}
-            </button>
-          )}
-          <input
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-            placeholder={adding.day === ON_DEMAND_DAY ? '配信サイト等のメモ(任意)' : '教室(任意)'}
-            className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          />
-          <p className="mt-1 text-[11px] text-gray-400">
-            候補から選ぶと、課題や資料が自動でこの講義に紐づきます
-          </p>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => setAdding(null)}
-              className="flex-1 rounded-lg border border-gray-200 py-2 text-sm text-gray-500"
-            >
-              キャンセル
-            </button>
-            <button
-              onClick={addSlot}
-              className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white"
-            >
-              追加
-            </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   )
 }

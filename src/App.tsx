@@ -134,6 +134,8 @@ function Home() {
   const [message, setMessage] = useState('')
   // 初回の案内ステップ。'profile'→'moodle'→null(通常画面)の順に進む
   const [onboardStep, setOnboardStep] = useState<null | 'profile' | 'moodle'>(null)
+  // 「時間割」タブを押すたびに増やし、TimetableTab の追加画面等を閉じさせる
+  const [timetableReset, setTimetableReset] = useState(0)
   const initRan = useRef(false)
 
   const flash = (text: string) => {
@@ -483,6 +485,7 @@ function Home() {
           onFlash={flash}
           settings={settings}
           onSaveSettings={saveSettingsQuiet}
+          resetSignal={timetableReset}
         />
       )}
 
@@ -530,7 +533,10 @@ function Home() {
         ).map(([key, icon, label]) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => {
+              setTab(key)
+              if (key === 'timetable') setTimetableReset((n) => n + 1)
+            }}
             className={`flex flex-1 flex-col items-center py-2 text-xs ${
               tab === key ? 'font-bold text-indigo-600' : 'text-gray-400'
             }`}
