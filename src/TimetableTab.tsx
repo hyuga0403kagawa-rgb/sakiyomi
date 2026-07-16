@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Monitor, X } from 'lucide-react'
 import type { Settings, Task, TimetableDays, TimetableSlot } from './types'
 import * as repo from './repo'
 import { fetchCourses } from './materials'
@@ -50,18 +51,18 @@ function SemesterModal(props: {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <button onClick={props.onClose} className="text-2xl leading-none text-gray-400">
-            ×
+          <button onClick={props.onClose} className="text-gray-400" aria-label="閉じる">
+            <X className="h-5 w-5" />
           </button>
-          <h3 className="text-base font-bold text-gray-800">年度・学期切替</h3>
+          <h3 className="text-base font-semibold text-gray-800">年度・学期切替</h3>
           <span className="w-6" />
         </div>
         <p className="mt-4 text-sm text-gray-500">
-          年度や学期が変わったときは、こちらから表示を切り替えましょう💡
+          年度や学期が変わったときは、こちらから表示を切り替えましょう
         </p>
         <p className="mt-1 text-xs text-gray-400">※過去に作成した時間割も引き続きご利用できます</p>
 
-        <label className="mt-5 block text-sm font-bold text-gray-700">年度</label>
+        <label className="mt-5 block text-sm font-semibold text-gray-700">年度</label>
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
@@ -74,7 +75,7 @@ function SemesterModal(props: {
           ))}
         </select>
 
-        <p className="mt-5 text-sm font-bold text-gray-700">学期</p>
+        <p className="mt-5 text-sm font-semibold text-gray-700">学期</p>
         <div className="mt-2 space-y-1">
           {SEMESTER_TERMS.map((t) => (
             <button
@@ -84,10 +85,10 @@ function SemesterModal(props: {
             >
               <span
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-                  term === t.key ? 'border-blue-500' : 'border-gray-300'
+                  term === t.key ? 'border-primary' : 'border-gray-300'
                 }`}
               >
-                {term === t.key && <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />}
+                {term === t.key && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
               </span>
               <span className="text-sm text-gray-800">{t.label}</span>
             </button>
@@ -101,7 +102,7 @@ function SemesterModal(props: {
 
         <button
           onClick={() => props.onApply(`${year} ${term}`)}
-          className="mt-5 w-full rounded-xl bg-blue-500 py-3 text-base font-bold text-white"
+          className="mt-5 w-full rounded-lg bg-primary py-3 text-base font-semibold text-white"
         >
           変更する
         </button>
@@ -306,16 +307,16 @@ export default function TimetableTab(props: {
       : []
     return (
       <main className="px-4 py-4">
-        <button onClick={() => setAdding(null)} className="text-sm text-indigo-600 underline">
+        <button onClick={() => setAdding(null)} className="text-sm text-primary underline">
           ← 時間割に戻る
         </button>
-        <h2 className="mt-3 text-base font-bold text-gray-800">
+        <h2 className="mt-3 text-base font-semibold text-gray-800">
           {adding.day === ON_DEMAND_DAY
-            ? '🖥️ オンデマンドに授業を追加'
+            ? 'オンデマンドに授業を追加'
             : `${DAY_LABEL[adding.day]}曜 ${adding.period}限に授業を追加`}
         </h2>
 
-        <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
           <input
             value={course}
             onChange={(e) => setCourse(e.target.value)}
@@ -328,7 +329,7 @@ export default function TimetableTab(props: {
                 <button
                   key={c}
                   onClick={() => setCourse(c)}
-                  className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700"
+                  className="rounded-full bg-primary-soft px-2.5 py-1 text-xs text-primary-dark"
                 >
                   {c}
                 </button>
@@ -366,7 +367,7 @@ export default function TimetableTab(props: {
           </p>
           <button
             onClick={addSlot}
-            className="mt-3 w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-bold text-white"
+            className="mt-3 w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-white"
           >
             追加
           </button>
@@ -378,7 +379,7 @@ export default function TimetableTab(props: {
   return (
     <main className="px-3 py-4">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-lg font-bold text-gray-800">
+        <h2 className="text-lg font-semibold text-gray-800">
           {year}年 {term}
         </h2>
         <button
@@ -406,7 +407,7 @@ export default function TimetableTab(props: {
         <button
           onClick={() => setEditMode(!editMode)}
           className={`rounded-lg px-3 py-1 text-xs ${
-            editMode ? 'bg-red-50 font-bold text-red-600' : 'text-indigo-600 underline'
+            editMode ? 'bg-red-50 font-semibold text-red-600' : 'text-primary underline'
           }`}
         >
           {editMode ? '編集を終了' : 'コマを削除'}
@@ -439,7 +440,7 @@ export default function TimetableTab(props: {
             return (
               <div key={d.day} className="flex items-center justify-center">
                 {isToday ? (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
                     {d.label}
                   </span>
                 ) : (
@@ -451,7 +452,7 @@ export default function TimetableTab(props: {
           {PERIODS.map((p) => (
             <Fragment key={`row-${p}`}>
               <div className="flex flex-col items-center justify-center py-1 text-center">
-                <span className="text-xs font-bold text-gray-600">{p}</span>
+                <span className="text-xs font-semibold text-gray-600">{p}</span>
                 {PERIOD_TIMES[p] && (
                   <span className="mt-0.5 text-[7px] leading-tight text-gray-400">
                     {PERIOD_TIMES[p][0]}
@@ -503,7 +504,7 @@ export default function TimetableTab(props: {
       )}
 
       <div className="mt-4 px-1">
-        <h3 className="text-xs font-bold text-gray-500">🖥️ オンデマンド</h3>
+        <h3 className="flex items-center gap-1 text-xs font-semibold text-gray-500"><Monitor className="h-3.5 w-3.5" />オンデマンド</h3>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {onDemandSlots.map((slot) => {
             const c = colorClass(courseColors[slot.course])

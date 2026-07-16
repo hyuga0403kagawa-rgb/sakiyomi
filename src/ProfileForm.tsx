@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Camera } from 'lucide-react'
 import type { Settings } from './types'
 import { supabase } from './supabase'
 import AvatarIcon, { AVATAR_IDS } from './AvatarIcon'
@@ -92,7 +93,7 @@ export default function ProfileForm(props: {
               key={id}
               onClick={() => setAvatar(id)}
               className={`rounded-full p-0.5 ${
-                avatar === id ? 'ring-2 ring-indigo-500' : 'ring-1 ring-gray-200'
+                avatar === id ? 'ring-2 ring-primary' : 'ring-1 ring-gray-200'
               }`}
               aria-label={`アイコン${id}`}
             >
@@ -103,15 +104,15 @@ export default function ProfileForm(props: {
             onClick={() => fileRef.current?.click()}
             disabled={busy}
             className={`rounded-full p-0.5 ${
-              avatar === 'photo' ? 'ring-2 ring-indigo-500' : 'ring-1 ring-gray-200'
+              avatar === 'photo' ? 'ring-2 ring-primary' : 'ring-1 ring-gray-200'
             }`}
             aria-label="写真を選ぶ"
           >
             {avatar === 'photo' && avatarUrl ? (
               <AvatarIcon avatar="photo" avatarUrl={avatarUrl} size={44} />
             ) : (
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-lg">
-                📷
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100">
+                <Camera className="h-5 w-5 text-gray-500" />
               </span>
             )}
           </button>
@@ -197,7 +198,7 @@ export default function ProfileForm(props: {
       <button
         onClick={save}
         disabled={busy}
-        className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white disabled:opacity-50"
+        className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white disabled:opacity-50"
       >
         {busy ? '保存中…' : submitLabel}
       </button>

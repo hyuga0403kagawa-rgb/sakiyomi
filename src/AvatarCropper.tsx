@@ -100,7 +100,7 @@ export default function AvatarCropper(props: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
       <div className="w-full max-w-sm rounded-2xl bg-white p-4">
-        <h3 className="text-center text-sm font-bold text-gray-800">写真の位置とサイズを調整</h3>
+        <h3 className="text-center text-sm font-semibold text-gray-800">写真の位置とサイズを調整</h3>
         <p className="mt-1 text-center text-xs text-gray-400">ドラッグで移動・スライダーで拡大</p>
 
         <div
@@ -134,7 +134,7 @@ export default function AvatarCropper(props: {
           step={0.01}
           value={zoom}
           onChange={(e) => changeZoom(Number(e.target.value))}
-          className="mt-4 w-full accent-indigo-600"
+          className="mt-4 w-full accent-primary"
         />
 
         <div className="mt-3 flex gap-2">
@@ -146,7 +146,7 @@ export default function AvatarCropper(props: {
           </button>
           <button
             onClick={confirm}
-            className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white"
+            className="flex-1 rounded-lg bg-primary py-2 text-sm font-semibold text-white"
           >
             この範囲で決定
           </button>

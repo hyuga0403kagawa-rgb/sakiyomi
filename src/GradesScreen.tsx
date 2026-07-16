@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import { X } from 'lucide-react'
 import type { Grade } from './types'
 import { gradeGp, gradeInGpa, gradePassed } from './types'
 import * as repo from './repo'
 import { SEMESTER_TERMS, defaultSemester, parseSemester, yearOptions } from './semester'
 
 const GRADE_BADGE: Record<string, string> = {
-  秀: 'bg-indigo-100 text-indigo-700',
-  優: 'bg-blue-100 text-blue-700',
-  良: 'bg-green-100 text-green-700',
-  可: 'bg-amber-100 text-amber-700',
-  不可: 'bg-red-100 text-red-600',
-  合格: 'bg-slate-100 text-slate-600',
+  秀: 'bg-primary-soft text-primary-dark',
+  優: 'bg-blue-50 text-blue-700',
+  良: 'bg-green-50 text-green-700',
+  可: 'bg-amber-50 text-amber-700',
+  不可: 'bg-red-50 text-red-600',
+  合格: 'bg-gray-100 text-gray-600',
 }
 
 /** 手動選択・下書き編集で選べる成績(合格=合否科目も含む) */
@@ -195,37 +196,37 @@ export default function GradesScreen(props: {
 
   return (
     <main className="px-4 py-4">
-      <button onClick={onBack} className="text-sm text-indigo-600 underline">
+      <button onClick={onBack} className="text-sm text-primary underline">
         ← マイページに戻る
       </button>
-      <h2 className="mt-3 text-base font-bold text-gray-800">成績・GPA</h2>
+      <h2 className="mt-3 text-base font-semibold text-gray-800">成績・GPA</h2>
       <p className="mt-0.5 text-[11px] text-gray-400">
         手入力で管理します(カダサポとの自動連携はできないため)。GP: 秀4・優3・良2・可1・不可0
       </p>
 
       {/* サマリー */}
       <div className="mt-3 flex gap-2">
-        <div className="flex-1 rounded-xl bg-white p-3 text-center shadow-sm">
-          <p className="text-2xl font-bold text-indigo-600">
+        <div className="flex-1 rounded-lg border border-gray-200 bg-white p-3 text-center">
+          <p className="text-3xl font-semibold tracking-tight tabular-nums text-primary">
             {summary.gpa === null ? '—' : summary.gpa.toFixed(2)}
           </p>
           <p className="text-[11px] text-gray-500">GPA</p>
         </div>
-        <div className="flex-1 rounded-xl bg-white p-3 text-center shadow-sm">
-          <p className="text-2xl font-bold text-gray-800">{summary.earned}</p>
+        <div className="flex-1 rounded-lg border border-gray-200 bg-white p-3 text-center">
+          <p className="text-3xl font-semibold tracking-tight tabular-nums text-gray-900">{summary.earned}</p>
           <p className="text-[11px] text-gray-500">取得単位</p>
         </div>
-        <div className="flex-1 rounded-xl bg-white p-3 text-center shadow-sm">
-          <p className="text-2xl font-bold text-gray-800">{summary.total}</p>
+        <div className="flex-1 rounded-lg border border-gray-200 bg-white p-3 text-center">
+          <p className="text-3xl font-semibold tracking-tight tabular-nums text-gray-900">{summary.total}</p>
           <p className="text-[11px] text-gray-500">履修単位</p>
         </div>
       </div>
 
       {/* 追加 */}
-      <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
+      <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">📝 成績を追加</h3>
-          <button onClick={() => setAdding(!adding)} className="text-xs text-indigo-600 underline">
+          <h3 className="text-sm font-semibold text-gray-800">成績を追加</h3>
+          <button onClick={() => setAdding(!adding)} className="text-xs text-primary underline">
             {adding ? '閉じる' : '+ 追加'}
           </button>
         </div>
@@ -273,7 +274,7 @@ export default function GradesScreen(props: {
                   key={g}
                   onClick={() => setGrade(g)}
                   className={`rounded-full px-3 py-1 text-sm ${
-                    grade === g ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600'
+                    grade === g ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
                   }`}
                 >
                   {g}
@@ -293,7 +294,7 @@ export default function GradesScreen(props: {
             </div>
             <button
               onClick={add}
-              className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white"
+              className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white"
             >
               登録
             </button>
@@ -302,12 +303,12 @@ export default function GradesScreen(props: {
       </div>
 
       {/* まとめて貼り付け取り込み */}
-      <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
+      <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">📋 カダサポからまとめて取り込み</h3>
+          <h3 className="text-sm font-semibold text-gray-800">カダサポからまとめて取り込み</h3>
           <button
             onClick={() => setShowPaste(!showPaste)}
-            className="text-xs text-indigo-600 underline"
+            className="text-xs text-primary underline"
           >
             {showPaste ? '閉じる' : '開く'}
           </button>
@@ -327,14 +328,14 @@ export default function GradesScreen(props: {
             />
             <button
               onClick={runParse}
-              className="w-full rounded-lg border border-indigo-600 py-2 text-sm font-medium text-indigo-600"
+              className="w-full rounded-lg border border-primary py-2 text-sm font-medium text-primary"
             >
-              ✨ 解析する
+              解析する
             </button>
 
             {drafts.length > 0 && (
               <div className="mt-2 space-y-2">
-                <p className="text-xs font-bold text-gray-700">
+                <p className="text-xs font-semibold text-gray-700">
                   読み取り結果({drafts.length}件) — 間違いは直してください
                 </p>
                 {drafts.map((d, i) => (
@@ -350,7 +351,7 @@ export default function GradesScreen(props: {
                         className="shrink-0 text-gray-300 hover:text-red-500"
                         aria-label="この行を除く"
                       >
-                        ✕
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                     <div className="mt-1.5 flex items-center gap-1.5">
@@ -382,7 +383,7 @@ export default function GradesScreen(props: {
                 ))}
                 <button
                   onClick={saveDrafts}
-                  className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white"
+                  className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white"
                 >
                   この内容で登録({drafts.length}件)
                 </button>
@@ -400,7 +401,7 @@ export default function GradesScreen(props: {
       ) : (
         byTerm.map(([t, list]) => (
           <div key={t} className="mt-4">
-            <h3 className="mb-1 text-sm font-bold text-gray-700">
+            <h3 className="mb-1 text-sm font-semibold text-gray-700">
               {t}
               <span className="ml-2 text-xs font-normal text-gray-400">
                 {list.reduce((s, g) => s + g.credits, 0)}単位
@@ -408,9 +409,9 @@ export default function GradesScreen(props: {
             </h3>
             <ul className="space-y-1.5">
               {list.map((g) => (
-                <li key={g.id} className="flex items-center gap-2 rounded-lg bg-white p-2.5 shadow-sm">
+                <li key={g.id} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2.5">
                   <span
-                    className={`shrink-0 rounded px-2 py-0.5 text-sm font-bold ${
+                    className={`shrink-0 rounded px-2 py-0.5 text-sm font-semibold ${
                       GRADE_BADGE[g.grade] ?? 'bg-gray-100 text-gray-600'
                     }`}
                   >
@@ -423,7 +424,7 @@ export default function GradesScreen(props: {
                     className="shrink-0 text-gray-300 hover:text-red-500"
                     aria-label="削除"
                   >
-                    ✕
+                    <X className="h-4 w-4" />
                   </button>
                 </li>
               ))}

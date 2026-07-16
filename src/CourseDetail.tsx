@@ -1,7 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Archive,
+  BookOpen,
+  ExternalLink,
+  File as FileIcon,
+  FileText,
+  Film,
+  FolderOpen,
+  Image as ImageIcon,
+  Link2,
+  Presentation,
+  Table2,
+  TrendingUp,
+  UserCheck,
+} from 'lucide-react'
 import type { AttendanceRecord, AttendanceStatus, CourseInfo, Task } from './types'
 import * as repo from './repo'
-import { fetchCourseFiles, fetchCourses, fileIcon, fmtFileSize, type MaterialFile } from './materials'
+import { fetchCourseFiles, fetchCourses, fileKind, fmtFileSize, type MaterialFile } from './materials'
 import { COURSE_COLOR_CLASS, COURSE_COLOR_KEYS, DEFAULT_COURSE_COLOR } from './courseColors'
 import TaskRow from './TaskRow'
 
@@ -32,6 +47,24 @@ const STATUS_LABEL: Record<AttendanceStatus, string> = {
   present: '出席',
   late: '遅刻',
   absent: '欠席',
+}
+
+/** ファイル種別→ラインアイコン(絵文字は使わない) */
+const FILE_KIND_ICON = {
+  link: Link2,
+  pdf: FileText,
+  slides: Presentation,
+  doc: FileText,
+  sheet: Table2,
+  image: ImageIcon,
+  video: Film,
+  archive: Archive,
+  file: FileIcon,
+} as const
+
+function FileTypeIcon(props: { f: MaterialFile }) {
+  const Icon = FILE_KIND_ICON[fileKind(props.f)]
+  return <Icon className="h-4 w-4 shrink-0 text-gray-400" />
 }
 
 export default function CourseDetail(props: {
@@ -201,10 +234,10 @@ export default function CourseDetail(props: {
 
   return (
     <main className="px-4 py-4">
-      <button onClick={onBack} className="text-sm text-indigo-600">
+      <button onClick={onBack} className="text-sm text-primary">
         ← 時間割に戻る
       </button>
-      <h2 className="mt-2 text-lg font-bold text-gray-800">{course}</h2>
+      <h2 className="mt-2 text-lg font-semibold text-gray-800">{course}</h2>
 
       {/* 講義の色 */}
       <div className="mt-3 flex items-center gap-2">
@@ -224,11 +257,11 @@ export default function CourseDetail(props: {
       </div>
 
       {/* 成績見込み */}
-      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800">📈 成績見込み</h3>
+      <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800"><TrendingUp className="h-4 w-4 text-gray-400" />成績見込み</h3>
         {grade ? (
           <>
-            <p className="mt-2 text-2xl font-bold text-indigo-600">
+            <p className="mt-2 text-2xl font-semibold text-primary">
               {grade.min}〜{grade.max}
               <span className="text-sm font-normal text-gray-500"> 点</span>
             </p>
@@ -239,7 +272,7 @@ export default function CourseDetail(props: {
             </ul>
             {grade.max < 60 && (
               <p className="mt-2 rounded-lg bg-red-50 px-2 py-1 text-xs text-red-700">
-                ⚠ このままだと単位取得が難しい可能性があります
+                このままだと単位取得が難しい可能性があります
               </p>
             )}
             {grade.max >= 60 && grade.min < 60 && (
@@ -256,8 +289,8 @@ export default function CourseDetail(props: {
       </div>
 
       {/* 出席管理 */}
-      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800">🙋 出席管理</h3>
+      <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800"><UserCheck className="h-4 w-4 text-gray-400" />出席管理</h3>
         <div className="mt-2 flex gap-2">
           <button
             onClick={() => mark('present')}
@@ -285,7 +318,7 @@ export default function CourseDetail(props: {
           <span>
             出席{stats.present} · 遅刻{stats.late} · 欠席{stats.absent}
             {stats.rate !== null && (
-              <span className={`ml-2 font-bold ${stats.rate < 0.7 ? 'text-red-600' : 'text-green-600'}`}>
+              <span className={`ml-2 font-semibold ${stats.rate < 0.7 ? 'text-red-600' : 'text-green-600'}`}>
                 出席率 {Math.round(stats.rate * 100)}%
               </span>
             )}
@@ -299,12 +332,12 @@ export default function CourseDetail(props: {
       </div>
 
       {/* シラバス情報 */}
-      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+      <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">📖 シラバス情報</h3>
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800"><BookOpen className="h-4 w-4 text-gray-400" />シラバス情報</h3>
           <button
             onClick={() => setShowSyllabusForm(!showSyllabusForm)}
-            className="text-xs text-indigo-600 underline"
+            className="text-xs text-primary underline"
           >
             {showSyllabusForm ? '閉じる' : info ? '編集' : '登録する'}
           </button>
@@ -341,9 +374,9 @@ export default function CourseDetail(props: {
             />
             <button
               onClick={runExtract}
-              className="w-full rounded-lg border border-indigo-600 py-1.5 text-xs font-medium text-indigo-600"
+              className="w-full rounded-lg border border-primary py-1.5 text-xs font-medium text-primary"
             >
-              ✨ 貼り付けた文章から自動読み取り
+              貼り付けた文章から自動読み取り
             </button>
             <div className="grid grid-cols-3 gap-2">
               {numField('出席', 'attendancePct')}
@@ -380,7 +413,7 @@ export default function CourseDetail(props: {
                 className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
               />
             </label>
-            <button onClick={saveInfo} className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white">
+            <button onClick={saveInfo} className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white">
               保存
             </button>
           </div>
@@ -389,14 +422,14 @@ export default function CourseDetail(props: {
 
       {/* 課題 */}
       <div className="mt-4">
-        <h3 className="text-sm font-bold text-gray-800">
-          📝 この講義の課題{' '}
+        <h3 className="text-sm font-semibold text-gray-800">
+          この講義の課題{' '}
           <span className="text-xs font-normal text-gray-400">
             未提出{pending.length}件 / 全{courseTasks.length}件
           </span>
         </h3>
         {pending.length === 0 ? (
-          <p className="mt-2 text-xs text-gray-400">未提出の課題はありません 🎉</p>
+          <p className="mt-2 text-xs text-gray-400">未提出の課題はありません</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {pending.map((t) => (
@@ -408,22 +441,22 @@ export default function CourseDetail(props: {
 
       {/* 資料 */}
       <div className="mt-4">
-        <h3 className="text-sm font-bold text-gray-800">📚 講義資料</h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800"><FolderOpen className="h-4 w-4 text-gray-400" />講義資料</h3>
         {files === null ? (
           <p className="mt-2 text-xs text-gray-400">読み込み中…</p>
         ) : files.length === 0 ? (
           <p className="mt-2 text-xs text-gray-400">{filesError || '資料はありません'}</p>
         ) : (
-          <ul className="mt-2 space-y-1 rounded-xl bg-white p-2 shadow-sm">
+          <ul className="mt-2 space-y-1 rounded-lg border border-gray-200 bg-white p-2">
             {files.map((f, i) => (
               <li key={i}>
                 <a
                   href={f.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-indigo-50"
+                  className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-primary-soft"
                 >
-                  <span className="shrink-0">{fileIcon(f)}</span>
+                  <FileTypeIcon f={f} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-gray-800">{f.filename}</span>
                     <span className="block truncate text-[11px] text-gray-400">
@@ -431,7 +464,7 @@ export default function CourseDetail(props: {
                       {f.filesize > 0 && ` · ${fmtFileSize(f.filesize)}`}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs text-gray-300">↗</span>
+                  <ExternalLink className="h-4 w-4 shrink-0 text-gray-300" />
                 </a>
               </li>
             ))}

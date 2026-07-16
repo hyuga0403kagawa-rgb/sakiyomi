@@ -2,7 +2,6 @@
 
 export interface JobTemplate {
   id: string
-  icon: string
   title: string
   description: string
   content: string
@@ -11,7 +10,6 @@ export interface JobTemplate {
 export const JOB_TEMPLATES: JobTemplate[] = [
   {
     id: 'self-pr',
-    icon: '💪',
     title: '自己PR',
     description: '結論→根拠→再結論の王道構成',
     content: `【自己PRの構成】
@@ -33,7 +31,6 @@ export const JOB_TEMPLATES: JobTemplate[] = [
   },
   {
     id: 'gakuchika',
-    icon: '🔥',
     title: 'ガクチカ(学生時代に力を入れたこと)',
     description: 'STAR法で語る',
     content: `【ガクチカの構成(STAR法)】
@@ -55,7 +52,6 @@ R: Result 結果どうなったか+何を学んだか
   },
   {
     id: 'motivation',
-    icon: '🎯',
     title: '志望動機',
     description: 'なぜこの業界→なぜこの会社',
     content: `【志望動機の構成】
@@ -75,7 +71,6 @@ R: Result 結果どうなったか+何を学んだか
   },
   {
     id: 'mail',
-    icon: '✉️',
     title: 'メール例文集',
     description: '説明会申込・OB訪問・お礼・辞退',
     content: `【1. 会社説明会の申込み】
@@ -131,7 +126,6 @@ R: Result 結果どうなったか+何を学んだか
   },
   {
     id: 'resume',
-    icon: '📄',
     title: '履歴書チェックリスト',
     description: '提出前の最終確認に',
     content: `【基本情報】

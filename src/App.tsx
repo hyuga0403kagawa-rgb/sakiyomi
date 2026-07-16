@@ -1,4 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  BarChart3,
+  Bell,
+  Briefcase,
+  Calendar,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  CircleUser,
+  ClipboardList,
+  Crown,
+  ExternalLink,
+  FileText,
+  Home as HomeIcon,
+  ListTodo,
+  Mail,
+  RefreshCw,
+  Settings as SettingsIcon,
+  Smartphone,
+  Sparkles,
+} from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import type { Settings, Task, TimetableSlot } from './types'
 import { DEFAULT_SETTINGS } from './types'
@@ -93,8 +115,8 @@ function NewPasswordScreen(props: { onDone: () => void }) {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center bg-gray-50 px-6">
-      <h1 className="text-center text-xl font-bold text-indigo-600">新しいパスワードを設定</h1>
-      <div className="mt-6 space-y-3 rounded-xl bg-white p-4 shadow-sm">
+      <h1 className="text-center text-xl font-semibold text-primary">新しいパスワードを設定</h1>
+      <div className="mt-6 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
         <input
           type="password"
           value={password}
@@ -115,7 +137,7 @@ function NewPasswordScreen(props: { onDone: () => void }) {
         <button
           onClick={save}
           disabled={busy}
-          className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white disabled:opacity-50"
+          className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
           {busy ? '変更中…' : 'パスワードを変更する'}
         </button>
@@ -277,7 +299,7 @@ function Home() {
   const handleConnect = async (moodleUrl: string, username: string, password: string) => {
     await connectMoodle(moodleUrl, username, password)
     setOnboardStep(null) // 初回案内の途中なら通常画面へ抜ける
-    flash('✅ 連携しました!課題を取得しています…')
+    flash('連携しました。課題を取得しています…')
     await performSync()
     setTab('today')
   }
@@ -290,18 +312,18 @@ function Home() {
 
   if (onboardStep === 'profile') {
     return (
-      <div className="mx-auto min-h-screen max-w-md bg-gray-50 px-6 py-8">
-        <p className="text-center text-xs font-bold text-indigo-400">ステップ 1 / 2</p>
-        <h1 className="mt-1 text-center text-xl font-bold text-indigo-600">プロフィールを設定</h1>
+      <div className="mx-auto min-h-screen max-w-md bg-white px-6 py-8">
+        <p className="text-center text-xs font-semibold text-primary">ステップ 1 / 2</p>
+        <h1 className="mt-1 text-center text-xl font-semibold text-primary">プロフィールを設定</h1>
         <p className="mt-1 text-center text-xs text-gray-500">
           あなたのことを少しだけ教えてください(あとで「マイページ」からいつでも変更できます)
         </p>
         {message && (
-          <div className="mt-3 rounded-lg bg-indigo-100 px-3 py-2 text-sm text-indigo-800">
+          <div className="mt-3 rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-dark">
             {message}
           </div>
         )}
-        <div className="mt-6 rounded-xl bg-white p-4 shadow-sm">
+        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
           <ProfileForm
             settings={settings}
             onFlash={flash}
@@ -322,16 +344,16 @@ function Home() {
 
   if (onboardStep === 'moodle') {
     return (
-      <div className="mx-auto min-h-screen max-w-md bg-gray-50 px-6 py-8">
-        <p className="text-center text-xs font-bold text-indigo-400">ステップ 2 / 2</p>
-        <h1 className="mt-1 text-center text-xl font-bold text-indigo-600">課題を自動で読み込む</h1>
+      <div className="mx-auto min-h-screen max-w-md bg-white px-6 py-8">
+        <p className="text-center text-xs font-semibold text-primary">ステップ 2 / 2</p>
+        <h1 className="mt-1 text-center text-xl font-semibold text-primary">課題を自動で読み込む</h1>
         <p className="mt-1 text-center text-xs text-gray-500">
           大学のMoodleにログインするIDとパスワードを入れるだけ。
           <br />
           パスワードは保存されないので安心してください。
         </p>
         {message && (
-          <div className="mt-3 rounded-lg bg-indigo-100 px-3 py-2 text-sm text-indigo-800">
+          <div className="mt-3 rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-dark">
             {message}
           </div>
         )}
@@ -357,25 +379,21 @@ function Home() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-gray-50 pb-24">
-      <header className="sticky top-0 z-10 bg-indigo-600 px-4 py-3 text-white shadow">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold">
-            UniPort
-          </h1>
-          <span className="text-[11px] opacity-80">
-            {syncing
-              ? '同期中…'
-              : settings.lastSyncedAt
-                ? `✓ 自動同期 ${fmtTime(settings.lastSyncedAt)}`
-                : ''}
-          </span>
-        </div>
-        <p className="text-xs opacity-80">課題を先読みして、今日やる分だけ教えてくれる</p>
+    <div className="mx-auto min-h-screen max-w-md bg-white pb-24">
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900">UniPort</h1>
+        <span className="flex items-center gap-1 text-[11px] text-gray-400">
+          {syncing && <RefreshCw className="h-3 w-3 animate-spin" />}
+          {syncing
+            ? '同期中…'
+            : settings.lastSyncedAt
+              ? `自動同期 ${fmtTime(settings.lastSyncedAt)}`
+              : ''}
+        </span>
       </header>
 
       {message && (
-        <div className="mx-4 mt-3 rounded-lg bg-indigo-100 px-3 py-2 text-sm text-indigo-800">
+        <div className="mx-4 mt-3 rounded-lg bg-gray-900 px-3 py-2 text-sm text-white">
           {message}
         </div>
       )}
@@ -384,23 +402,26 @@ function Home() {
         settings.lastSyncedAt &&
         Date.now() - new Date(settings.lastSyncedAt).getTime() > 24 * 3600_000 && (
           <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            ⚠ 同期が24時間以上成功していません。設定画面からMoodleとの連携をやり直してください。
+            同期が24時間以上成功していません。設定画面からMoodleとの連携をやり直してください。
           </div>
         )}
 
       {tab === 'today' && (
         <main className="px-4 py-4">
           <div
-            className={`rounded-xl p-3 ${
-              recommendation.warning
-                ? 'border border-red-200 bg-red-50'
-                : 'border border-indigo-100 bg-indigo-50'
+            className={`rounded-lg border p-3 ${
+              recommendation.warning ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50'
             }`}
           >
-            <p className={`text-xs font-bold ${recommendation.warning ? 'text-red-500' : 'text-indigo-500'}`}>
-              ✨ AIおすすめ
+            <p
+              className={`flex items-center gap-1.5 text-xs font-semibold ${
+                recommendation.warning ? 'text-red-600' : 'text-gray-500'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AIおすすめ
             </p>
-            <p className={`mt-1 text-sm ${recommendation.warning ? 'text-red-700' : 'text-indigo-900'}`}>
+            <p className={`mt-1 text-sm ${recommendation.warning ? 'text-red-700' : 'text-gray-800'}`}>
               {recommendation.text}
             </p>
           </div>
@@ -410,14 +431,14 @@ function Home() {
               href={ICOMPASS_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 flex items-center gap-2 rounded-xl bg-white p-3 shadow-sm"
+              className="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3"
             >
-              <span className="text-lg">📲</span>
+              <Smartphone className="h-5 w-5 text-gray-400" />
               <span className="flex-1">
                 <span className="block text-sm font-medium text-gray-800">iCompass</span>
                 <span className="block text-xs text-gray-400">出席の登録・確認(香川大学)</span>
               </span>
-              <span className="text-gray-300">↗</span>
+              <ExternalLink className="h-4 w-4 text-gray-300" />
             </a>
           )}
 
@@ -433,13 +454,13 @@ function Home() {
             return (
               <button
                 onClick={() => setTab('timetable')}
-                className="mt-3 w-full rounded-xl bg-white p-3 text-left shadow-sm"
+                className="mt-3 w-full rounded-lg border border-gray-200 bg-white p-3 text-left"
               >
-                <p className="text-xs font-bold text-gray-500">🗓️ 今日の授業</p>
+                <p className="text-xs font-semibold text-gray-500">今日の授業</p>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
                   {todayClasses.map((s) => (
                     <span key={s.id} className="text-sm text-gray-800">
-                      <span className="font-medium text-indigo-600">{s.period}限</span> {s.course}
+                      <span className="font-medium text-primary">{s.period}限</span> {s.course}
                       {s.room && <span className="text-xs text-gray-400"> @{s.room}</span>}
                     </span>
                   ))}
@@ -448,7 +469,7 @@ function Home() {
             )
           })()}
 
-          <h2 className="mt-4 text-base font-bold text-gray-800">
+          <h2 className="mt-4 text-base font-semibold text-gray-800">
             {today.getMonth() + 1}月{today.getDate()}日({WEEKDAY_JA[today.getDay()]}) 今日やること
           </h2>
           <p className="mt-1 text-sm text-gray-500">
@@ -456,9 +477,9 @@ function Home() {
           </p>
 
           {plan.items.length === 0 ? (
-            <div className="mt-10 text-center text-gray-500">
-              <div className="text-4xl">✅</div>
-              <p className="mt-2 text-sm">今日やる分はありません!</p>
+            <div className="mt-10 flex flex-col items-center text-center text-gray-500">
+              <CheckCircle2 className="h-10 w-10 text-gray-300" />
+              <p className="mt-2 text-sm">今日やる分はありません</p>
             </div>
           ) : (
             <ul className="mt-3 space-y-2">
@@ -524,24 +545,24 @@ function Home() {
       <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md border-t border-gray-200 bg-white">
         {(
           [
-            ['today', '🏠', '今日'],
-            ['timetable', '🗓️', '時間割'],
-            ['all', '📋', 'すべて'],
-            ['job', '💼', '就活'],
-            ['settings', '👤', 'マイページ'],
+            ['today', HomeIcon, '今日'],
+            ['timetable', CalendarDays, '時間割'],
+            ['all', ListTodo, 'すべて'],
+            ['job', Briefcase, '就活'],
+            ['settings', CircleUser, 'マイページ'],
           ] as const
-        ).map(([key, icon, label]) => (
+        ).map(([key, Icon, label]) => (
           <button
             key={key}
             onClick={() => {
               setTab(key)
               if (key === 'timetable') setTimetableReset((n) => n + 1)
             }}
-            className={`flex flex-1 flex-col items-center py-2 text-xs ${
-              tab === key ? 'font-bold text-indigo-600' : 'text-gray-400'
+            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${
+              tab === key ? 'font-medium text-primary' : 'text-gray-400'
             }`}
           >
-            <span className="text-lg">{icon}</span>
+            <Icon className="h-5 w-5" strokeWidth={tab === key ? 2.2 : 1.8} />
             {label}
           </button>
         ))}
@@ -643,29 +664,29 @@ function AllTab(props: {
   return (
     <main className="px-4 py-4">
       <div className="flex items-center justify-between text-xs text-gray-400">
-        <span>{lastSyncedAt ? `✓ 自動同期 · 最終更新 ${fmtTime(lastSyncedAt)}` : 'まだ同期していません'}</span>
+        <span>{lastSyncedAt ? `自動同期 · 最終更新 ${fmtTime(lastSyncedAt)}` : 'まだ同期していません'}</span>
         <span className="flex items-center gap-1">
           <button
             onClick={onOpenCalendar}
             aria-label="カレンダー表示"
-            className="rounded-lg px-2 py-1 hover:bg-gray-100"
+            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
           >
-            📅
+            <Calendar className="h-4 w-4" />
           </button>
           <button
             onClick={onSync}
             disabled={syncing}
             aria-label="今すぐ同期"
-            className="rounded-lg px-2 py-1 hover:bg-gray-100 disabled:opacity-50"
+            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
           >
-            {syncing ? '同期中…' : '🔄'}
+            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
           </button>
         </span>
       </div>
 
       {editing && (
-        <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-800">タスクを編集</h3>
+        <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+          <h3 className="text-sm font-semibold text-gray-800">タスクを編集</h3>
           {editing.source === 'manual' ? (
             <>
               <input
@@ -716,7 +737,7 @@ function AllTab(props: {
             </button>
             <button
               onClick={saveEdit}
-              className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white"
+              className="flex-1 rounded-lg bg-primary py-2 text-sm font-semibold text-white"
             >
               保存
             </button>
@@ -735,7 +756,7 @@ function AllTab(props: {
             key={key}
             onClick={() => setView(key)}
             className={`flex-1 rounded-md py-1.5 ${
-              view === key ? 'bg-white font-medium text-indigo-600 shadow-sm' : 'text-gray-500'
+              view === key ? 'bg-white font-medium text-primary' : 'text-gray-500'
             }`}
           >
             {label}
@@ -743,12 +764,12 @@ function AllTab(props: {
         ))}
       </div>
 
-      <div className="mt-3 rounded-xl bg-white p-3 shadow-sm">
+      <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="タスクを追加(例: レポートの下調べ)"
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none"
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <input
@@ -776,7 +797,7 @@ function AllTab(props: {
           </select>
           <button
             onClick={addTask}
-            className="ml-auto rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white"
+            className="ml-auto rounded-lg bg-primary px-4 py-1.5 text-sm font-medium text-white"
           >
             追加
           </button>
@@ -798,7 +819,7 @@ function AllTab(props: {
       ) : (
         byCourse.map(([course, list]) => (
           <div key={course} className="mt-4">
-            <h3 className="mb-2 text-sm font-bold text-gray-700">
+            <h3 className="mb-2 text-sm font-semibold text-gray-700">
               {course} <span className="ml-1 text-xs font-normal text-gray-400">{list.length}件</span>
             </h3>
             <ul className="space-y-2">
@@ -818,7 +839,7 @@ function AllTab(props: {
       )}
 
       {active.length === 0 && (
-        <p className="mt-6 text-center text-sm text-gray-400">未提出の課題はありません 🎉</p>
+        <p className="mt-6 text-center text-sm text-gray-400">未提出の課題はありません</p>
       )}
 
       {doneTasks.length > 0 && (
@@ -829,12 +850,12 @@ function AllTab(props: {
           {showDone && (
             <ul className="mt-2 space-y-2 opacity-70">
               {doneTasks.map((task) => (
-                <li key={task.id} className="flex items-center gap-3 rounded-xl bg-white p-3">
+                <li key={task.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
                   <input
                     type="checkbox"
                     checked
                     onChange={() => toggleDone(task.id)}
-                    className="h-5 w-5 shrink-0 accent-indigo-600"
+                    className="h-5 w-5 shrink-0 accent-primary"
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-gray-500 line-through">
@@ -890,18 +911,19 @@ function MoodleConnectCard(props: {
   }
 
   return (
-    <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+    <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-800">大学のMoodleと連携</h3>
+        <h3 className="text-sm font-semibold text-gray-800">大学のMoodleと連携</h3>
         {connected && (
-          <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-            ✅ 連携済み
+          <span className="flex items-center gap-1 rounded bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+            <Check className="h-3 w-3" />
+            連携済み
           </span>
         )}
       </div>
 
       {connected && !showForm && (
-        <button onClick={() => setShowForm(true)} className="mt-3 text-sm text-indigo-600 underline">
+        <button onClick={() => setShowForm(true)} className="mt-3 text-sm text-primary underline">
           連携をやり直す
         </button>
       )}
@@ -968,9 +990,9 @@ function MoodleConnectCard(props: {
           <button
             onClick={connect}
             disabled={busy}
-            className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white disabled:opacity-50"
+            className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {busy ? '連携中…' : '🔗 連携する'}
+            {busy ? '連携中…' : '連携する'}
           </button>
 
           <details className="text-xs text-gray-400">
@@ -995,7 +1017,7 @@ function MoodleConnectCard(props: {
                   setToken('')
                   setShowForm(false)
                 }}
-                className="rounded-lg border border-indigo-600 px-3 py-2 text-sm font-medium text-indigo-600"
+                className="rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary"
               >
                 登録
               </button>
@@ -1009,14 +1031,11 @@ function MoodleConnectCard(props: {
 
 // 「近日公開」には、まだ実際に提供していない機能だけを載せる。
 // (就活サポート・企業情報は既に「就活」タブで提供中なのでここには出さない)
-const COMING_SOON = [
-  ['🤖', 'AI就活相談・ES添削'],
-  ['📱', 'ホーム画面ウィジェット(アプリ版)'],
-] as const
+const COMING_SOON = ['AI就活相談・ES添削', 'ホーム画面ウィジェット(アプリ版)'] as const
 
 /** マイページ内の折りたたみセクション(規約・設定など) */
 function CollapsibleSection(props: {
-  icon: string
+  icon: React.ReactNode
   title: string
   defaultOpen?: boolean
   children: React.ReactNode
@@ -1025,13 +1044,15 @@ function CollapsibleSection(props: {
   return (
     <div className="mt-5">
       <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between px-1 py-1">
-        <span className="flex items-center gap-1.5 text-sm font-bold text-gray-700">
-          <span>{props.icon}</span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+          {props.icon}
           {props.title}
         </span>
-        <span className={`text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`}>⌄</span>
+        <ChevronDown
+          className={`h-4 w-4 text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`}
+        />
       </button>
-      {open && <div className="mt-2 rounded-xl bg-white p-4 shadow-sm">{props.children}</div>}
+      {open && <div className="mt-2 rounded-lg border border-gray-200 bg-white p-4">{props.children}</div>}
     </div>
   )
 }
@@ -1046,11 +1067,11 @@ function ProfileDetailScreen(props: {
   const { settings, onFlash, onSave, onBack } = props
   return (
     <main className="px-4 py-4">
-      <button onClick={onBack} className="text-sm text-indigo-600 underline">
+      <button onClick={onBack} className="text-sm text-primary underline">
         ← マイページに戻る
       </button>
-      <h2 className="mt-3 text-base font-bold text-gray-800">プロフィール詳細</h2>
-      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+      <h2 className="mt-3 text-base font-semibold text-gray-800">プロフィール詳細</h2>
+      <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
         <ProfileForm
           settings={settings}
           onFlash={onFlash}
@@ -1099,7 +1120,7 @@ function SettingsTab(props: {
     try {
       const { enablePush } = await import('./push')
       await enablePush()
-      onFlash('✅ この端末で通知を受け取ります')
+      onFlash('この端末で通知を受け取ります')
     } catch (e) {
       onFlash(e instanceof Error ? e.message : '通知の設定に失敗しました')
     } finally {
@@ -1150,13 +1171,13 @@ function SettingsTab(props: {
 
   return (
     <main className="px-4 py-4">
-      <h2 className="text-base font-bold text-gray-800">マイページ</h2>
+      <h2 className="text-base font-semibold text-gray-800">マイページ</h2>
 
-      <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+      <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center gap-3">
           <AvatarIcon avatar={settings.avatar} avatarUrl={settings.avatarUrl} size={52} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-bold text-gray-800">
+            <p className="truncate text-base font-semibold text-gray-800">
               {settings.nickname ?? 'ニックネーム未設定'}
             </p>
             <p className="truncate text-xs text-gray-500">
@@ -1166,22 +1187,27 @@ function SettingsTab(props: {
             </p>
           </div>
         </div>
-        {email && <p className="mt-3 truncate text-xs text-gray-500">✉️ {email}</p>}
+        {email && (
+          <p className="mt-3 flex items-center gap-1.5 truncate text-xs text-gray-500">
+            <Mail className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            {email}
+          </p>
+        )}
         <button
           onClick={() => setShowProfileDetail(true)}
-          className="mt-3 w-full rounded-full border border-indigo-600 py-2 text-sm font-medium text-indigo-600"
+          className="mt-3 w-full rounded-lg border border-gray-300 py-2 text-sm font-medium text-gray-700"
         >
-          ✏️ プロフィール詳細
+          プロフィール詳細
         </button>
       </div>
 
       <button
         onClick={() => setShowGrades(true)}
-        className="mt-4 flex w-full items-center gap-2 rounded-xl bg-white p-4 text-left shadow-sm"
+        className="mt-4 flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-white p-4 text-left"
       >
-        <span className="text-lg">📊</span>
+        <BarChart3 className="h-5 w-5 text-gray-400" />
         <span className="flex-1">
-          <span className="block text-sm font-bold text-gray-800">成績・GPA</span>
+          <span className="block text-sm font-semibold text-gray-800">成績・GPA</span>
           <span className="block text-xs text-gray-400">手入力で成績を記録してGPAを計算</span>
         </span>
         <span className="text-gray-300">›</span>
@@ -1190,48 +1216,51 @@ function SettingsTab(props: {
       <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
 
       {isKagawaStudent(settings) && (
-        <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-800">🎓 大学のリンク</h3>
+        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-gray-800">大学のリンク</h3>
           <a
             href={KADASAPO_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-2 flex items-center gap-2 rounded-lg border border-gray-100 p-2"
           >
-            <span className="text-lg">📋</span>
+            <ClipboardList className="h-5 w-5 text-gray-400" />
             <span className="flex-1">
               <span className="block text-sm font-medium text-gray-800">カダサポ</span>
               <span className="block text-xs text-gray-400">履修登録・成績など(香川大学)</span>
             </span>
-            <span className="text-gray-300">↗</span>
+            <ExternalLink className="h-4 w-4 text-gray-300" />
           </a>
         </div>
       )}
 
       {/* Premium(準備中): ホーム画面ウィジェットの完成イメージを見せる */}
-      <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4">
+      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-violet-800">👑 UniPort Premium</h3>
-          <span className="rounded bg-violet-200 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+            <Crown className="h-4 w-4 text-gray-500" />
+            UniPort Premium
+          </h3>
+          <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
             準備中
           </span>
         </div>
-        <p className="mt-1 text-xs text-violet-700">
+        <p className="mt-1 text-xs text-gray-600">
           ホーム画面ウィジェットで、タスク・時間割がひと目で。下のボタンで種類を切り替えられます。
         </p>
         <WidgetPreview tasks={tasks} slots={slots} settings={settings} onToggle={onToggle} />
-        <p className="mt-3 text-[11px] text-violet-500">
+        <p className="mt-3 text-[11px] text-gray-400">
           ※ウィジェットはアプリ版(準備中)で提供予定です。上は今のあなたのデータでの表示イメージです。
         </p>
       </div>
 
-      <CollapsibleSection icon="📄" title="規約">
-        <a href="privacy.html" target="_blank" rel="noopener" className="text-sm text-indigo-600 underline">
+      <CollapsibleSection icon={<FileText className="h-4 w-4 text-gray-400" />} title="規約">
+        <a href="privacy.html" target="_blank" rel="noopener" className="text-sm text-primary underline">
           プライバシーポリシー
         </a>
       </CollapsibleSection>
 
-      <CollapsibleSection icon="⚙️" title="設定">
+      <CollapsibleSection icon={<SettingsIcon className="h-4 w-4 text-gray-400" />} title="設定">
         <div className="space-y-4">
           <label className="block">
             <span className="text-sm font-medium text-gray-700">
@@ -1244,7 +1273,7 @@ function SettingsTab(props: {
               step={30}
               value={minutes}
               onChange={(e) => setMinutes(Number(e.target.value))}
-              className="mt-2 w-full accent-indigo-600"
+              className="mt-2 w-full accent-primary"
             />
           </label>
 
@@ -1280,7 +1309,7 @@ function SettingsTab(props: {
             </span>
           </label>
 
-          <button onClick={save} className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white">
+          <button onClick={save} className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white">
             保存
           </button>
 
@@ -1288,9 +1317,10 @@ function SettingsTab(props: {
             <button
               onClick={handleEnablePush}
               disabled={enabling}
-              className="w-full rounded-lg border border-indigo-600 py-2 text-sm font-bold text-indigo-600 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary py-2 text-sm font-semibold text-primary disabled:opacity-50"
             >
-              🔔 この端末で通知を受け取る
+              <Bell className="h-4 w-4" />
+              この端末で通知を受け取る
             </button>
             <p className="mt-2 text-xs text-gray-500">
               iPhoneの場合は、先にSafariの共有ボタンから「ホーム画面に追加」し、
@@ -1299,13 +1329,11 @@ function SettingsTab(props: {
           </div>
 
           <div className="border-t border-gray-100 pt-4">
-            <h3 className="text-sm font-bold text-gray-800">🚀 近日公開</h3>
+            <h3 className="text-sm font-semibold text-gray-800">近日公開</h3>
             <ul className="mt-2 space-y-2">
-              {COMING_SOON.map(([icon, label]) => (
+              {COMING_SOON.map((label) => (
                 <li key={label} className="flex items-center justify-between text-sm text-gray-400">
-                  <span>
-                    {icon} {label}
-                  </span>
+                  <span>{label}</span>
                   <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px]">準備中</span>
                 </li>
               ))}

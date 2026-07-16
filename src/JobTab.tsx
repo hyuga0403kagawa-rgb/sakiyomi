@@ -1,22 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Bot,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Crown,
+  ExternalLink,
+  Pencil,
+  X,
+} from 'lucide-react'
 import type { Company, JobEntry, JobNote, JobProfile } from './types'
 import { JOB_NOTE_CATEGORIES, JOB_STATUSES } from './types'
 import * as repo from './repo'
 import { JOB_TEMPLATES } from './jobTemplates'
 
 const ENTRY_TYPES = ['説明会', 'セミナー', 'インターン', '本選考', 'ES提出', '面接', 'OB/OG訪問', 'その他']
-
-/** 種別ごとの絵文字(スケジュール一覧の見分け用) */
-const ENTRY_TYPE_ICON: Record<string, string> = {
-  説明会: '🎤',
-  セミナー: '📚',
-  インターン: '🧑‍💻',
-  本選考: '📄',
-  ES提出: '✍️',
-  面接: '🗣️',
-  'OB/OG訪問': '🤝',
-  その他: '📌',
-}
 
 /** 締切までの残り日数(その日を含む) */
 function daysLeft(deadline: string): number {
@@ -28,7 +26,7 @@ function daysLeft(deadline: string): number {
 
 /** 危険度カラー(7日以内:赤 / 8〜14日:黄 / 15日以上:緑) */
 function deadlineColor(days: number): string {
-  if (days < 0) return 'text-red-600 font-bold'
+  if (days < 0) return 'text-red-600 font-semibold'
   if (days <= 7) return 'text-red-600'
   if (days <= 14) return 'text-amber-600'
   return 'text-green-600'
@@ -160,13 +158,13 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
     if (tpl) {
       return (
         <main className="px-4 py-4">
-          <button onClick={() => setView('home')} className="text-sm text-indigo-600">
+          <button onClick={() => setView('home')} className="text-sm text-primary">
             ← 就活に戻る
           </button>
-          <h2 className="mt-2 text-lg font-bold text-gray-800">
-            {tpl.icon} {tpl.title}
+          <h2 className="mt-2 text-lg font-semibold text-gray-800">
+            {tpl.title}
           </h2>
-          <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
+          <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
             <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-gray-700">
               {tpl.content}
             </pre>
@@ -178,9 +176,10 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
                 .then(() => onFlash('テンプレートをコピーしました'))
                 .catch(() => onFlash('コピーに失敗しました'))
             }}
-            className="mt-3 w-full rounded-lg bg-slate-800 py-2 text-sm font-bold text-white"
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 py-2 text-sm font-semibold text-white"
           >
-            📋 全文をコピー
+            <Copy className="h-4 w-4" />
+            全文をコピー
           </button>
         </main>
       )
@@ -189,15 +188,15 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
 
   return (
     <main className="px-4 py-4">
-      <h2 className="text-base font-bold text-gray-800">就活</h2>
+      <h2 className="text-base font-semibold text-gray-800">就活</h2>
 
       {/* 1. 就活スケジュール(説明会・セミナー・インターン・締切などを一元管理) */}
-      <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
+      <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">🗓️ 就活スケジュール</h3>
+          <h3 className="text-sm font-semibold text-gray-800">就活スケジュール</h3>
           <button
             onClick={() => setShowAddEntry(!showAddEntry)}
-            className="text-xs text-indigo-600 underline"
+            className="text-xs text-primary underline"
           >
             {showAddEntry ? '閉じる' : '+ 追加'}
           </button>
@@ -238,7 +237,7 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
             />
             <button
               onClick={addEntry}
-              className="w-full rounded-lg bg-slate-800 py-2 text-sm font-bold text-white"
+              className="w-full rounded-lg bg-gray-900 py-2 text-sm font-semibold text-white"
             >
               登録
             </button>
@@ -260,13 +259,13 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
                     type="checkbox"
                     checked={e.done}
                     onChange={() => toggleEntry(e)}
-                    className="mt-0.5 h-5 w-5 accent-slate-700"
+                    className="mt-0.5 h-5 w-5 accent-primary"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-x-2">
                       <span className="truncate text-sm font-medium text-gray-800">{e.company}</span>
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-                        {ENTRY_TYPE_ICON[e.entryType] ?? ''} {e.entryType}
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                        {e.entryType}
                       </span>
                     </p>
                     <p className="text-xs">
@@ -301,7 +300,7 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
                     className="shrink-0 text-gray-300 hover:text-red-500"
                     aria-label="削除"
                   >
-                    ✕
+                    <X className="h-4 w-4" />
                   </button>
                 </li>
               )
@@ -321,21 +320,21 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
       {/* 2. AI就活サポート */}
       <button
         onClick={() => setView('chat')}
-        className="mt-3 w-full rounded-xl bg-slate-800 p-4 text-left shadow-sm"
+        className="mt-3 w-full rounded-lg bg-gray-900 p-4 text-left"
       >
-        <p className="text-sm font-bold text-white">🤖 AI就活サポート</p>
-        <p className="mt-1 text-xs text-slate-300">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-white"><Bot className="h-4 w-4" />AI就活サポート</p>
+        <p className="mt-1 text-xs text-gray-400">
           自己PR・ガクチカ・ES添削・面接対策の相談はこちら
         </p>
       </button>
 
       {/* 3. 就活プロフィール */}
-      <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
+      <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">🧭 就活プロフィール</h3>
+          <h3 className="text-sm font-semibold text-gray-800">就活プロフィール</h3>
           <button
             onClick={() => setShowProfileForm(!showProfileForm)}
-            className="text-xs text-indigo-600 underline"
+            className="text-xs text-primary underline"
           >
             {showProfileForm ? '閉じる' : profile ? '編集' : '設定する'}
           </button>
@@ -366,11 +365,11 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
       </div>
 
       {/* 4. おすすめ企業(AIおすすめ枠: 非スポンサーのみ) */}
-      <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800">✨ あなたへのおすすめ企業</h3>
+      <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-800">あなたへのおすすめ企業</h3>
         {recommended.length === 0 ? (
           <p className="mt-2 text-xs text-gray-400">
-            🚧 企業情報は掲載準備中です。掲載企業が増え次第、プロフィールに合わせて表示されます
+            企業情報は掲載準備中です。掲載企業が増え次第、プロフィールに合わせて表示されます
           </p>
         ) : (
           <ul className="mt-2 space-y-2">
@@ -383,9 +382,9 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
 
       {/* PR枠(有料掲載。おすすめとは明確に分離) */}
       {sponsored.length > 0 && (
-        <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-800">
-            🏢 協賛企業
+        <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-gray-800">
+            協賛企業
             <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
               PR
             </span>
@@ -399,10 +398,10 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
       )}
 
       {/* 5. 掲載企業のインターン・説明会(運営が登録するイベント枠) */}
-      <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800">🏢 掲載企業のインターン・説明会</h3>
+      <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-800">掲載企業のインターン・説明会</h3>
         {events.length === 0 ? (
-          <p className="mt-2 text-xs text-gray-400">🚧 掲載準備中です</p>
+          <p className="mt-2 text-xs text-gray-400">掲載準備中です</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {events.map((c) => (
@@ -415,8 +414,8 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
                     </span>
                   )}
                 </p>
-                {c.internInfo && <p className="text-xs text-gray-500">🧑‍💻 {c.internInfo}</p>}
-                {c.seminarInfo && <p className="text-xs text-gray-500">🎤 {c.seminarInfo}</p>}
+                {c.internInfo && <p className="text-xs text-gray-500">インターン: {c.internInfo}</p>}
+                {c.seminarInfo && <p className="text-xs text-gray-500">説明会: {c.seminarInfo}</p>}
               </li>
             ))}
           </ul>
@@ -424,21 +423,20 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
       </div>
 
       {/* 6. テンプレート */}
-      <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800">📝 テンプレート集</h3>
+      <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-800">テンプレート集</h3>
         <ul className="mt-2 space-y-1">
           {JOB_TEMPLATES.map((t) => (
             <li key={t.id}>
               <button
                 onClick={() => setView(`template:${t.id}`)}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-slate-50"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-gray-50"
               >
-                <span>{t.icon}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm text-gray-800">{t.title}</span>
                   <span className="block text-[11px] text-gray-400">{t.description}</span>
                 </span>
-                <span className="text-gray-300">›</span>
+                <ChevronRight className="h-4 w-4 text-gray-300" />
               </button>
             </li>
           ))}
@@ -449,14 +447,15 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
       <JobNotes onFlash={onFlash} />
 
       {/* 7. Premium(準備中) */}
-      <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-        <h3 className="text-sm font-bold text-slate-700">
-          👑 UniPort Premium
-          <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-600">
+      <div className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+          <Crown className="h-4 w-4 text-gray-500" />
+          UniPort Premium
+          <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-600">
             準備中
           </span>
         </h3>
-        <ul className="mt-1 space-y-0.5 text-xs text-slate-500">
+        <ul className="mt-1 space-y-0.5 text-xs text-gray-500">
           <li>・ホーム画面ウィジェット</li>
           <li>・AI添削 無制限</li>
           <li>・面接練習(AIロールプレイ)</li>
@@ -481,7 +480,7 @@ function CompanyCard(props: { company: Company; pr?: boolean }) {
               PR
             </span>
           )}
-          <span className="text-gray-300">{open ? '▾' : '▸'}</span>
+          {open ? <ChevronDown className="h-4 w-4 text-gray-300" /> : <ChevronRight className="h-4 w-4 text-gray-300" />}
         </p>
         <p className="truncate text-xs text-gray-400">
           {[c.industry, c.location].filter(Boolean).join(' · ')}
@@ -499,9 +498,10 @@ function CompanyCard(props: { company: Company; pr?: boolean }) {
               href={c.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-1 inline-block text-indigo-600 underline"
+              className="mt-1 inline-flex items-center gap-1 text-primary underline"
             >
-              公式サイト ↗
+              公式サイト
+              <ExternalLink className="h-3 w-3" />
             </a>
           )}
         </div>
@@ -582,7 +582,7 @@ function JobProfileForm(props: {
       <button
         onClick={save}
         disabled={busy}
-        className="w-full rounded-lg bg-slate-800 py-2 text-sm font-bold text-white disabled:opacity-50"
+        className="w-full rounded-lg bg-gray-900 py-2 text-sm font-semibold text-white disabled:opacity-50"
       >
         保存
       </button>
@@ -653,10 +653,10 @@ function JobNotes(props: { onFlash: (text: string) => void }) {
   }
 
   return (
-    <div className="mt-3 rounded-xl bg-white p-4 shadow-sm">
+    <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-800">🧠 自己分析メモ</h3>
-        <button onClick={startNew} className="text-xs text-indigo-600 underline">
+        <h3 className="text-sm font-semibold text-gray-800">自己分析メモ</h3>
+        <button onClick={startNew} className="text-xs text-primary underline">
           + 追加
         </button>
       </div>
@@ -672,7 +672,7 @@ function JobNotes(props: { onFlash: (text: string) => void }) {
                 key={c}
                 onClick={() => setCategory(c)}
                 className={`rounded-full px-2.5 py-1 text-xs ${
-                  category === c ? 'bg-slate-800 text-white' : 'bg-white text-gray-500'
+                  category === c ? 'bg-gray-900 text-white' : 'bg-white text-gray-500'
                 }`}
               >
                 {c}
@@ -701,7 +701,7 @@ function JobNotes(props: { onFlash: (text: string) => void }) {
             </button>
             <button
               onClick={save}
-              className="flex-1 rounded-lg bg-slate-800 py-2 text-sm font-bold text-white"
+              className="flex-1 rounded-lg bg-gray-900 py-2 text-sm font-semibold text-white"
             >
               保存
             </button>
@@ -716,7 +716,7 @@ function JobNotes(props: { onFlash: (text: string) => void }) {
           {notes.map((n) => (
             <li key={n.id} className="rounded-lg border border-gray-100 p-2">
               <div className="flex items-center gap-2">
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
                   {n.category}
                 </span>
                 {n.title && (
@@ -724,14 +724,14 @@ function JobNotes(props: { onFlash: (text: string) => void }) {
                     {n.title}
                   </span>
                 )}
-                <button onClick={() => copy(n)} className="shrink-0 text-xs text-indigo-600" aria-label="コピー">
-                  📋
+                <button onClick={() => copy(n)} className="shrink-0 text-gray-400 hover:text-gray-600" aria-label="コピー">
+                  <Copy className="h-4 w-4" />
                 </button>
-                <button onClick={() => startEdit(n)} className="shrink-0 text-xs text-gray-400" aria-label="編集">
-                  ✏️
+                <button onClick={() => startEdit(n)} className="shrink-0 text-gray-400 hover:text-gray-600" aria-label="編集">
+                  <Pencil className="h-4 w-4" />
                 </button>
-                <button onClick={() => remove(n.id)} className="shrink-0 text-xs text-gray-300 hover:text-red-500" aria-label="削除">
-                  ✕
+                <button onClick={() => remove(n.id)} className="shrink-0 text-gray-300 hover:text-red-500" aria-label="削除">
+                  <X className="h-4 w-4" />
                 </button>
               </div>
               <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs text-gray-600">{n.body}</p>
@@ -761,7 +761,7 @@ function JobChat(props: { onBack: () => void }) {
       { role: 'user', text: t },
       {
         role: 'assistant',
-        text: '🚧 AIチャットは現在準備中です。もうすぐ相談できるようになるので、少しだけお待ちください!(いま送った内容はどこにも保存されていません)\n\nそれまでは「テンプレート集」の自己PR・ガクチカの構成ガイドが役に立つはずです。',
+        text: 'AIチャットは現在準備中です。もうすぐ相談できるようになるので、少しだけお待ちください!(いま送った内容はどこにも保存されていません)\n\nそれまでは「テンプレート集」の自己PR・ガクチカの構成ガイドが役に立つはずです。',
       },
     ])
     setInput('')
@@ -770,12 +770,12 @@ function JobChat(props: { onBack: () => void }) {
   return (
     <main className="flex min-h-[calc(100vh-8rem)] flex-col px-4 py-4">
       <div>
-        <button onClick={onBack} className="text-sm text-indigo-600">
+        <button onClick={onBack} className="text-sm text-primary">
           ← 就活に戻る
         </button>
-        <h2 className="mt-1 text-base font-bold text-gray-800">
-          🤖 AI就活サポート
-          <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-600">
+        <h2 className="mt-1 text-base font-semibold text-gray-800">
+          AI就活サポート
+          <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-600">
             準備中
           </span>
         </h2>
@@ -783,7 +783,7 @@ function JobChat(props: { onBack: () => void }) {
 
       <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
         {messages.length === 0 && (
-          <div className="rounded-xl bg-white p-3 text-sm text-gray-600 shadow-sm">
+          <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-600">
             こんにちは!自己PR・ガクチカ・ES添削・面接対策など、就活の相談相手になります。
             下のボタンから選ぶか、自由に入力してください。
           </div>
@@ -791,10 +791,10 @@ function JobChat(props: { onBack: () => void }) {
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`max-w-[85%] whitespace-pre-wrap rounded-xl p-3 text-sm shadow-sm ${
+            className={`max-w-[85%] whitespace-pre-wrap rounded-lg p-3 text-sm ${
               m.role === 'user'
-                ? 'ml-auto bg-slate-800 text-white'
-                : 'bg-white text-gray-700'
+                ? 'ml-auto bg-gray-900 text-white'
+                : 'border border-gray-200 bg-white text-gray-700'
             }`}
           >
             {m.text}
@@ -809,7 +809,7 @@ function JobChat(props: { onBack: () => void }) {
             <button
               key={c}
               onClick={() => send(c)}
-              className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700"
+              className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
             >
               {c}
             </button>
@@ -827,7 +827,7 @@ function JobChat(props: { onBack: () => void }) {
           />
           <button
             onClick={() => send(input)}
-            className="shrink-0 rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white"
+            className="shrink-0 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
           >
             送信
           </button>

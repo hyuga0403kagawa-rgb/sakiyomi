@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { BookOpen, Briefcase, FileText } from 'lucide-react'
 import type { JobEntry, Settings, Task, TimetableSlot } from './types'
 import * as repo from './repo'
 import { buildWidgetSummary } from './widgetSummary'
@@ -22,14 +23,14 @@ function TaskWidget(props: { tasks: Task[]; onToggle: (id: string) => void }) {
     .filter((t) => !t.done)
     .sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'))
   return (
-    <div className="mx-auto max-w-xs rounded-2xl bg-gray-100 p-3 shadow-lg">
+    <div className="mx-auto max-w-xs rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
       <div className="mb-2 flex items-center justify-between px-0.5">
-        <span className="text-sm font-bold text-gray-800">
-          📋 タスク <span className="text-gray-400">{active.length}</span>
+        <span className="text-sm font-semibold text-gray-800">
+          タスク <span className="tabular-nums text-gray-400">{active.length}</span>
         </span>
       </div>
       {active.length === 0 ? (
-        <p className="py-4 text-center text-xs text-gray-400">未提出のタスクはありません 🎉</p>
+        <p className="py-4 text-center text-xs text-gray-400">未提出のタスクはありません</p>
       ) : (
         <ul className="space-y-2">
           {active.slice(0, 4).map((t) => (
@@ -49,25 +50,25 @@ function TodayWidget(props: { slots: TimetableSlot[]; settings: Settings; colors
     .filter((s) => s.day === dv && s.semester === semester)
     .sort((a, b) => a.period - b.period)
   return (
-    <div className="mx-auto flex min-h-40 max-w-xs flex-col rounded-2xl bg-white p-3 shadow-lg">
+    <div className="mx-auto flex min-h-40 max-w-xs flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
       {todays.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center py-6 text-center">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-xl font-black text-white">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-xl font-semibold text-white">
             U
           </div>
-          <p className="mt-2 text-base font-bold text-gray-800">休日</p>
-          <p className="mt-0.5 text-xs text-gray-500">今日は授業がありません📣</p>
+          <p className="mt-2 text-base font-semibold text-gray-800">休日</p>
+          <p className="mt-0.5 text-xs text-gray-500">今日は授業がありません</p>
         </div>
       ) : (
         <>
-          <p className="text-[11px] font-bold text-indigo-500">今日の時間割</p>
+          <p className="text-[11px] font-semibold text-gray-500">今日の時間割</p>
           <ul className="mt-1.5 space-y-1.5">
             {todays.map((s) => {
               const c = colorClass(props.colors[s.course])
               return (
                 <li key={s.id} className="flex items-center gap-2">
                   <span className={`h-7 w-1 shrink-0 rounded-full ${c.swatch}`} />
-                  <span className="w-6 shrink-0 text-center text-xs font-bold text-gray-500">{s.period}</span>
+                  <span className="w-6 shrink-0 text-center text-xs font-semibold text-gray-500">{s.period}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13px] font-medium text-gray-800">{s.course}</span>
                     <span className="block text-[10px] text-gray-400">
@@ -98,8 +99,8 @@ function WeekWidget(props: { slots: TimetableSlot[]; settings: Settings; colors:
   const { year, term } = parseSemester(semester)
 
   return (
-    <div className="mx-auto max-w-xs rounded-2xl bg-white p-2.5 shadow-lg">
-      <p className="mb-1 px-0.5 text-[10px] font-bold text-gray-500">
+    <div className="mx-auto max-w-xs rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm">
+      <p className="mb-1 px-0.5 text-[10px] font-semibold text-gray-500">
         {year}年 {term}
       </p>
       <div
@@ -111,7 +112,7 @@ function WeekWidget(props: { slots: TimetableSlot[]; settings: Settings; colors:
           <div
             key={d.day}
             className={`text-center text-[9px] font-medium ${
-              d.day === dv ? 'text-indigo-600' : 'text-gray-400'
+              d.day === dv ? 'text-primary' : 'text-gray-400'
             }`}
           >
             {d.label}
@@ -151,37 +152,37 @@ function SummaryWidget(props: {
   settings: Settings
 }) {
   const s = buildWidgetSummary(props.tasks, props.slots, props.jobEntries, props.settings)
-  const Row = (p: { icon: string; label: string; main: string; sub?: string; urgent?: boolean }) => (
+  const Row = (p: { icon: ReactNode; label: string; main: string; sub?: string; urgent?: boolean }) => (
     <div className="flex items-center gap-2">
-      <span className="text-sm">{p.icon}</span>
+      {p.icon}
       <span className="w-8 shrink-0 text-[10px] text-gray-400">{p.label}</span>
       <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-800">{p.main}</span>
       {p.sub && (
-        <span className={`shrink-0 text-[11px] font-bold ${p.urgent ? 'text-red-500' : 'text-gray-400'}`}>
+        <span className={`shrink-0 text-[11px] font-semibold ${p.urgent ? 'text-red-500' : 'text-gray-400'}`}>
           {p.sub}
         </span>
       )}
     </div>
   )
   return (
-    <div className="mx-auto max-w-xs rounded-2xl bg-white p-3 shadow-lg">
-      <p className="text-[11px] font-bold text-indigo-500">今日のまとめ</p>
+    <div className="mx-auto max-w-xs rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+      <p className="text-[11px] font-semibold text-gray-500">今日のまとめ</p>
       <div className="mt-2 space-y-2">
         <Row
-          icon="📚"
+          icon={<BookOpen className="h-4 w-4 text-gray-400" />}
           label="授業"
           main={s.nextClass ? `${s.nextClass.period}限 ${s.nextClass.course}` : '今日の授業なし'}
           sub={s.nextClass ? s.nextClass.start : undefined}
         />
         <Row
-          icon="📝"
+          icon={<FileText className="h-4 w-4 text-gray-400" />}
           label="課題"
           main={s.nextTask ? s.nextTask.title : '未提出なし'}
           sub={s.nextTask?.label}
           urgent={s.nextTask?.urgent}
         />
         <Row
-          icon="💼"
+          icon={<Briefcase className="h-4 w-4 text-gray-400" />}
           label="就活"
           main={s.nextJob ? s.nextJob.company : '予定なし'}
           sub={s.nextJob?.label}
@@ -233,16 +234,16 @@ export default function WidgetPreview(props: {
             key={k.key}
             onClick={() => setKind(k.key)}
             className={`rounded-full px-2.5 py-1 text-xs ${
-              kind === k.key ? 'bg-violet-600 text-white' : 'bg-white text-violet-600'
+              kind === k.key ? 'bg-primary text-white' : 'border border-gray-200 bg-white text-gray-600'
             }`}
           >
             {k.label}
           </button>
         ))}
       </div>
-      <div className="mt-2 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 p-4">
+      <div className="mt-2 rounded-xl border border-gray-200 bg-gray-100 p-4">
         {widget}
-        <p className="mt-2 text-center text-[10px] text-slate-500">
+        <p className="mt-2 text-center text-[10px] text-gray-500">
           あなたのデータで表示中(完成イメージ)
         </p>
       </div>

@@ -89,7 +89,7 @@ export default function AuthScreen() {
     // メール確認オフの設定ではsessionが即発行され、そのままログイン状態になる
     // (onAuthStateChangeがHomeへ切り替える)。sessionが無い場合のみ確認メール案内を出す。
     if (data.session) {
-      info('登録が完了しました!ようこそ 🎉')
+      info('登録が完了しました!ようこそ')
     } else {
       info(
         '確認メールを送りました!メール内のリンクを開いてから、上の「ログイン」を押してください。',
@@ -120,12 +120,12 @@ export default function AuthScreen() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center bg-gray-50 px-6">
-      <h1 className="text-center text-2xl font-bold text-indigo-600">UniPort</h1>
+      <h1 className="text-center text-2xl font-semibold tracking-tight text-gray-900">UniPort</h1>
       <p className="mt-1 text-center text-sm text-gray-500">
         大学とつながる、課題ぜんぶ先読みアプリ
       </p>
 
-      <div className="mt-8 space-y-3 rounded-xl bg-white p-4 shadow-sm">
+      <div className="mt-8 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
         {!resetMode && (
           <>
             <div className="flex rounded-lg bg-gray-100 p-0.5 text-sm">
@@ -139,7 +139,7 @@ export default function AuthScreen() {
                   key={key}
                   onClick={() => switchMode(key)}
                   className={`flex-1 rounded-md py-1.5 ${
-                    mode === key ? 'bg-white font-bold text-indigo-600 shadow-sm' : 'text-gray-500'
+                    mode === key ? 'bg-white font-semibold text-primary' : 'text-gray-500'
                   }`}
                 >
                   {label}
@@ -175,7 +175,7 @@ export default function AuthScreen() {
         )}
 
         {message && (
-          <p className={`text-xs ${message.isError ? 'text-red-600' : 'text-indigo-700'}`}>
+          <p className={`text-xs ${message.isError ? 'text-red-600' : 'text-primary-dark'}`}>
             {message.text}
           </p>
         )}
@@ -185,7 +185,7 @@ export default function AuthScreen() {
             <button
               onClick={sendReset}
               disabled={busy}
-              className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               {busy ? '送信中…' : '再設定メールを送る'}
             </button>
@@ -204,7 +204,7 @@ export default function AuthScreen() {
             <button
               onClick={mode === 'signup' ? signUp : signIn}
               disabled={busy}
-              className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               {busy ? '処理中…' : mode === 'signup' ? 'この内容で新規登録' : 'ログイン'}
             </button>

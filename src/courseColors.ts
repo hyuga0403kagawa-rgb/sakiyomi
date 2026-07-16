@@ -25,13 +25,13 @@ interface ColorClass {
 }
 
 export const COURSE_COLOR_CLASS: Record<CourseColorKey, ColorClass> = {
-  blue: { cell: 'bg-blue-100', text: 'text-blue-900', swatch: 'bg-blue-400' },
-  red: { cell: 'bg-red-100', text: 'text-red-900', swatch: 'bg-red-400' },
-  green: { cell: 'bg-green-100', text: 'text-green-900', swatch: 'bg-green-500' },
-  amber: { cell: 'bg-amber-100', text: 'text-amber-900', swatch: 'bg-amber-400' },
-  purple: { cell: 'bg-purple-100', text: 'text-purple-900', swatch: 'bg-purple-400' },
-  teal: { cell: 'bg-teal-100', text: 'text-teal-900', swatch: 'bg-teal-500' },
-  pink: { cell: 'bg-pink-100', text: 'text-pink-900', swatch: 'bg-pink-400' },
+  blue: { cell: 'bg-blue-50', text: 'text-blue-800', swatch: 'bg-blue-400' },
+  red: { cell: 'bg-red-50', text: 'text-red-800', swatch: 'bg-red-400' },
+  green: { cell: 'bg-green-50', text: 'text-green-800', swatch: 'bg-green-400' },
+  amber: { cell: 'bg-amber-50', text: 'text-amber-800', swatch: 'bg-amber-400' },
+  purple: { cell: 'bg-purple-50', text: 'text-purple-800', swatch: 'bg-purple-400' },
+  teal: { cell: 'bg-teal-50', text: 'text-teal-800', swatch: 'bg-teal-400' },
+  pink: { cell: 'bg-pink-50', text: 'text-pink-800', swatch: 'bg-pink-400' },
   gray: { cell: 'bg-gray-100', text: 'text-gray-800', swatch: 'bg-gray-400' },
 }
 

@@ -18,13 +18,13 @@ export function buildRecommendation(tasks: Task[], plan: TodayPlan): Recommendat
 
   if (overdue.length > 0) {
     return {
-      text: `⚠ 期限切れの未提出が${overdue.length}件あります。まず「${overdue[0].title}」から片付けましょう。`,
+      text: `期限切れの未提出が${overdue.length}件あります。まず「${overdue[0].title}」から片付けましょう。`,
       warning: true,
     }
   }
   if (active.length === 0) {
     return {
-      text: '未提出の課題はゼロです!新しい課題が来たら自動でお知らせします ✨',
+      text: '未提出の課題はゼロです!新しい課題が来たら自動でお知らせします',
       warning: false,
     }
   }
@@ -47,7 +47,7 @@ export function buildRecommendation(tasks: Task[], plan: TodayPlan): Recommendat
   let text = `今日は${fmtMinutes(plan.totalMinutes)}。${names}を進めれば予定どおりです。`
   let warning = false
   if (plan.overloaded) {
-    text += ' ⚠ このペースだと間に合わない課題があるので、多めに進めるのがおすすめです。'
+    text += ' このペースだと間に合わない課題があるので、多めに進めるのがおすすめです。'
     warning = true
   }
   return { text, warning }

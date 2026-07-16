@@ -1,7 +1,16 @@
 @import 'tailwindcss';
 
+/* デザイントークン: アクセントは primary(ティール)の1色のみ。
+   それ以外は無彩色(白・黒・グレー)+状態色(期限切れ=赤)で構成する */
+@theme {
+  --color-primary: #046e7a;
+  --color-primary-dark: #03565f;
+  --color-primary-soft: #e8f2f3;
+}
+
 body {
   margin: 0;
-  background: #f3f4f6;
+  background: #ffffff;
+  color: #1f2937;
   font-family: system-ui, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
 }

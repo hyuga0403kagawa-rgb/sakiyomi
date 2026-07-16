@@ -37,18 +37,29 @@ export async function fetchCourseFiles(courseId: number): Promise<MaterialFile[]
   return (data.files ?? []) as MaterialFile[]
 }
 
-/** ファイル種別に応じたアイコン */
-export function fileIcon(f: MaterialFile): string {
-  if (f.modname === 'url') return '🔗'
+/** ファイル種別(表示側で対応するアイコンに割り当てる) */
+export type FileKind =
+  | 'link'
+  | 'pdf'
+  | 'slides'
+  | 'doc'
+  | 'sheet'
+  | 'image'
+  | 'video'
+  | 'archive'
+  | 'file'
+
+export function fileKind(f: MaterialFile): FileKind {
+  if (f.modname === 'url') return 'link'
   const name = f.filename.toLowerCase()
-  if (name.endsWith('.pdf')) return '📕'
-  if (/\.(pptx?|key)$/.test(name)) return '📙'
-  if (/\.(docx?|txt|md)$/.test(name)) return '📘'
-  if (/\.(xlsx?|csv)$/.test(name)) return '📗'
-  if (/\.(png|jpe?g|gif|webp)$/.test(name)) return '🖼️'
-  if (/\.(mp4|mov|avi|mp3|wav)$/.test(name)) return '🎬'
-  if (/\.(zip|7z|rar)$/.test(name)) return '🗜️'
-  return '📄'
+  if (name.endsWith('.pdf')) return 'pdf'
+  if (/\.(pptx?|key)$/.test(name)) return 'slides'
+  if (/\.(docx?|txt|md)$/.test(name)) return 'doc'
+  if (/\.(xlsx?|csv)$/.test(name)) return 'sheet'
+  if (/\.(png|jpe?g|gif|webp)$/.test(name)) return 'image'
+  if (/\.(mp4|mov|avi|mp3|wav)$/.test(name)) return 'video'
+  if (/\.(zip|7z|rar)$/.test(name)) return 'archive'
+  return 'file'
 }
 
 export function fmtFileSize(bytes: number): string {

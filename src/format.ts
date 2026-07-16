@@ -20,7 +20,7 @@ export function fmtMinutes(min: number): string {
 export function dueColor(iso?: string): string {
   if (!iso) return 'text-gray-400'
   const diff = new Date(iso).getTime() - Date.now()
-  if (diff < 0) return 'text-red-600 font-bold'
+  if (diff < 0) return 'text-red-600 font-semibold'
   if (diff < 24 * 3600_000) return 'text-red-600'
   if (diff < 72 * 3600_000) return 'text-orange-500'
   return 'text-gray-500'

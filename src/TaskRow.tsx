@@ -1,3 +1,4 @@
+import { Pencil, X } from 'lucide-react'
 import type { Task } from './types'
 import { dueColor, fmtCountdown, fmtDue, fmtMinutes } from './format'
 
@@ -13,18 +14,18 @@ export default function TaskRow(props: {
 }) {
   const { task, minutes, crammed, onToggle, onRemove, onEdit, showCourse = true } = props
   return (
-    <li className="flex items-start gap-3 rounded-xl bg-white p-3 shadow-sm">
+    <li className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
       <input
         type="checkbox"
         checked={task.done}
         onChange={() => onToggle(task.id)}
-        className="mt-1 h-5 w-5 accent-indigo-600"
+        className="mt-1 h-5 w-5 accent-primary"
       />
       <div className="min-w-0 flex-1">
         {showCourse && task.course && (
-          <p className="truncate text-xs font-medium text-indigo-500">{task.course}</p>
+          <p className="truncate text-xs text-gray-500">{task.course}</p>
         )}
-        <span className="block truncate font-medium text-gray-800">{task.title}</span>
+        <span className="block truncate font-medium text-gray-900">{task.title}</span>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
           {task.due ? (
             <>
@@ -40,20 +41,20 @@ export default function TaskRow(props: {
             </span>
           )}
         </p>
-        {crammed && <p className="text-xs text-red-600">⚠ 期限日に詰め込みが発生しています</p>}
+        {crammed && <p className="text-xs text-red-600">期限日に詰め込みが発生しています</p>}
       </div>
       {minutes !== undefined && (
-        <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
+        <span className="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-xs font-medium tabular-nums text-gray-600">
           {fmtMinutes(minutes)}
         </span>
       )}
       {onEdit && (
         <button
           onClick={() => onEdit(task)}
-          className="shrink-0 text-gray-300 hover:text-indigo-500"
+          className="shrink-0 text-gray-300 hover:text-gray-500"
           aria-label="編集"
         >
-          ✏️
+          <Pencil className="h-4 w-4" />
         </button>
       )}
       {onRemove && task.source === 'manual' && (
@@ -62,7 +63,7 @@ export default function TaskRow(props: {
           className="shrink-0 text-gray-300 hover:text-red-500"
           aria-label="削除"
         >
-          ✕
+          <X className="h-4 w-4" />
         </button>
       )}
     </li>

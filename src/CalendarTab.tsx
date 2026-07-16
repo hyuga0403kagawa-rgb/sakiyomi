@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Task } from './types'
 import TaskRow from './TaskRow'
 import { WEEKDAY_JA, dayKey } from './format'
@@ -46,7 +47,7 @@ export default function CalendarTab(props: {
 
   return (
     <main className="px-4 py-4">
-      <button onClick={onBack} className="text-sm text-indigo-600">
+      <button onClick={onBack} className="text-sm text-primary">
         ← すべてに戻る
       </button>
       <div className="mt-2 flex items-center justify-between">
@@ -55,9 +56,9 @@ export default function CalendarTab(props: {
           className="rounded-lg px-3 py-1 text-lg text-gray-500 hover:bg-gray-100"
           aria-label="前の月"
         >
-          ‹
+          <ChevronLeft className="h-5 w-5" />
         </button>
-        <h2 className="text-base font-bold text-gray-800">
+        <h2 className="text-base font-semibold text-gray-800">
           {month.getFullYear()}年{month.getMonth() + 1}月
         </h2>
         <button
@@ -65,7 +66,7 @@ export default function CalendarTab(props: {
           className="rounded-lg px-3 py-1 text-lg text-gray-500 hover:bg-gray-100"
           aria-label="次の月"
         >
-          ›
+          <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 
@@ -94,9 +95,9 @@ export default function CalendarTab(props: {
               onClick={() => setSelected(k)}
               className={`flex aspect-square flex-col items-center justify-center rounded-lg text-sm ${
                 isSelected
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-primary text-white'
                   : isToday
-                    ? 'bg-indigo-50 text-indigo-700 font-bold'
+                    ? 'bg-primary-soft text-primary-dark font-semibold'
                     : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
@@ -105,9 +106,9 @@ export default function CalendarTab(props: {
                 <span
                   className={`mt-0.5 h-4 min-w-4 rounded-full px-1 text-[10px] leading-4 ${
                     isSelected
-                      ? 'bg-white text-indigo-600'
+                      ? 'bg-white text-primary'
                       : undone > 0
-                        ? 'bg-indigo-500 text-white'
+                        ? 'bg-primary text-white'
                         : 'bg-gray-300 text-white'
                   }`}
                 >
@@ -119,7 +120,7 @@ export default function CalendarTab(props: {
         })}
       </div>
 
-      <h3 className="mt-5 text-sm font-bold text-gray-700">
+      <h3 className="mt-5 text-sm font-semibold text-gray-700">
         {selM}月{selD}日({WEEKDAY_JA[new Date(selY, selM - 1, selD).getDay()]})の課題
       </h3>
       {selectedTasks.length === 0 ? (
