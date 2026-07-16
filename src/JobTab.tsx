@@ -322,7 +322,7 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
         onClick={() => setView('chat')}
         className="mt-3 w-full rounded-lg bg-gray-900 p-4 text-left"
       >
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-white"><Bot className="h-4 w-4" />AI就活サポート</p>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-white"><Bot className="h-4 w-4 text-amber-400" />AI就活サポート</p>
         <p className="mt-1 text-xs text-gray-400">
           自己PR・ガクチカ・ES添削・面接対策の相談はこちら
         </p>
@@ -449,7 +449,7 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
       {/* 7. Premium(準備中) */}
       <div className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-          <Crown className="h-4 w-4 text-gray-500" />
+          <Crown className="h-4 w-4 text-amber-500" />
           UniPort Premium
           <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-600">
             準備中

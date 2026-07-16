@@ -410,12 +410,12 @@ function Home() {
         <main className="px-4 py-4">
           <div
             className={`rounded-lg border p-3 ${
-              recommendation.warning ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50'
+              recommendation.warning ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
             }`}
           >
             <p
               className={`flex items-center gap-1.5 text-xs font-semibold ${
-                recommendation.warning ? 'text-red-600' : 'text-gray-500'
+                recommendation.warning ? 'text-red-600' : 'text-amber-700'
               }`}
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -478,7 +478,7 @@ function Home() {
 
           {plan.items.length === 0 ? (
             <div className="mt-10 flex flex-col items-center text-center text-gray-500">
-              <CheckCircle2 className="h-10 w-10 text-gray-300" />
+              <CheckCircle2 className="h-10 w-10 text-amber-400" />
               <p className="mt-2 text-sm">今日やる分はありません</p>
             </div>
           ) : (
@@ -1238,7 +1238,7 @@ function SettingsTab(props: {
       <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
         <div className="flex items-center justify-between">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-            <Crown className="h-4 w-4 text-gray-500" />
+            <Crown className="h-4 w-4 text-amber-500" />
             UniPort Premium
           </h3>
           <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
