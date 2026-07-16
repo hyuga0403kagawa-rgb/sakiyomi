@@ -3,29 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#4f46e5" />
+    <meta name="theme-color" content="#046e7a" />
     <title>プライバシーポリシー | UniPort</title>
     <style>
       body {
         margin: 0;
-        background: #f9fafb;
+        background: #ffffff;
         color: #1f2937;
         font-family: system-ui, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
         line-height: 1.8;
       }
       .wrap { max-width: 640px; margin: 0 auto; padding: 24px 20px 60px; }
-      h1 { font-size: 20px; color: #4f46e5; }
-      h2 { font-size: 15px; margin-top: 28px; border-left: 4px solid #4f46e5; padding-left: 8px; }
+      h1 { font-size: 20px; color: #111827; }
+      h2 { font-size: 15px; margin-top: 28px; padding-left: 8px; border-left: 3px solid #046e7a; }
       p, li { font-size: 14px; }
       .updated { color: #9ca3af; font-size: 12px; }
-      a { color: #4f46e5; }
+      a { color: #046e7a; }
       .back { display: inline-block; margin-top: 32px; font-size: 14px; }
+      .links { margin-top: 8px; font-size: 13px; }
     </style>
   </head>
   <body>
     <div class="wrap">
       <h1>UniPort プライバシーポリシー</h1>
-      <p class="updated">最終更新: 2026年7月10日</p>
+      <p class="updated">最終更新: 2026年7月16日</p>
+      <p class="links"><a href="terms.html">利用規約はこちら</a></p>
 
       <p>
         「UniPort」(以下「本アプリ」)は、大学のMoodleと連携して課題を整理する、
@@ -38,9 +40,9 @@
         <li>Moodle連携トークン: Moodleが発行する連携用の鍵。課題・講義資料の取得のためだけに使います</li>
         <li>課題データ: 講義名・課題名・期限・完了状態</li>
         <li>設定情報: 1日に使える時間・通知時刻・通知の宛先(プッシュ購読情報)</li>
-        <li>プロフィール: ニックネーム・大学名・学部・学科・学年・アイコン画像</li>
-        <li>学習記録: 時間割・出席記録・講義情報(シラバスのメモ)</li>
-        <li>就活データ: エントリー管理(企業名・応募種別・締切・メモ)、就活プロフィール(志望業界・希望職種・希望勤務地・興味・開始時期)</li>
+        <li>プロフィール: ニックネーム・大学名・学部・学科・学年・アイコンまたは登録された写真画像</li>
+        <li>学習記録: 時間割・出席記録・講義情報(シラバスのメモ)・成績(科目名・評価・単位数、ご自身で入力または貼り付けた内容)</li>
+        <li>就活データ: エントリー管理(企業名・応募種別・締切・メモ・選考状況)、就活プロフィール(志望業界・希望職種・希望勤務地・興味・開始時期)、自己分析メモ</li>
       </ul>
 
       <h2>2. Moodleのパスワードについて</h2>
@@ -56,6 +58,7 @@
         本アプリの「AIおすすめ」等の提案機能は、<strong>お使いの端末内での計算のみで動作</strong>しており、
         課題データや講義資料が外部のAIサービス・AIモデルに送信されることはありません。
         したがって、<strong>あなたのデータがAIモデルの学習に使われることも一切ありません</strong>。
+        「AI就活サポート」は現在準備中の機能で、入力内容はどこにも保存・送信されません。
         将来、外部のAIサービスを利用する機能を追加する場合は、送信する情報の範囲と
         学習利用の有無を本ポリシーに明記し、事前にお知らせします。
       </p>
@@ -63,7 +66,8 @@
       <h2>4. 利用目的</h2>
       <ul>
         <li>課題の自動同期と整理・「今日やること」の提案</li>
-        <li>期限リマインダー等のプッシュ通知の送信</li>
+        <li>期限リマインダー・授業開始前通知等のプッシュ通知の送信</li>
+        <li>成績・出席・就活状況の記録および本人向け集計(GPA計算等)表示</li>
         <li>個人を特定できない形に加工した統計情報としての、サービスの改善・新機能開発のための分析</li>
       </ul>
       <p>
@@ -77,6 +81,7 @@
         Supabaseは運営者の指示に従ってデータを保管・処理する受託者であり、
         独自の目的でデータを利用することはありません。通信はすべて暗号化(HTTPS)され、
         データベースには本人のアカウント以外からアクセスできない保護ルールを設定しています。
+        プロフィール写真も同様に本人のみアクセス可能な領域に保存されます。
       </p>
 
       <h2>6. Cookie・ローカルストレージ</h2>
@@ -119,6 +124,7 @@
         完全性は保証されません。<strong>提出期限は必ずMoodle本体でも確認してください。</strong>
         本アプリの利用により生じた不利益(未提出等)について、運営者は責任を負いかねます。
         また、所属大学の情報システム利用ポリシーに従ってご利用ください。
+        詳細な免責事項は<a href="terms.html">利用規約</a>もあわせてご確認ください。
       </p>
 
       <h2>12. ポリシーの変更</h2>

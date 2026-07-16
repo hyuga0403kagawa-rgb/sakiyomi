@@ -1255,9 +1255,14 @@ function SettingsTab(props: {
       </div>
 
       <CollapsibleSection icon={<FileText className="h-4 w-4 text-gray-400" />} title="規約">
-        <a href="privacy.html" target="_blank" rel="noopener" className="text-sm text-primary underline">
-          プライバシーポリシー
-        </a>
+        <div className="flex flex-col gap-2">
+          <a href="terms.html" target="_blank" rel="noopener" className="text-sm text-primary underline">
+            利用規約
+          </a>
+          <a href="privacy.html" target="_blank" rel="noopener" className="text-sm text-primary underline">
+            プライバシーポリシー
+          </a>
+        </div>
       </CollapsibleSection>
 
       <CollapsibleSection icon={<SettingsIcon className="h-4 w-4 text-gray-400" />} title="設定">
