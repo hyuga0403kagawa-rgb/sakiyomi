@@ -26,12 +26,15 @@ async function syncUser(admin: any, userId: string) {
   const { data: s } = await admin.from('user_settings').select('*').eq('user_id', userId).maybeSingle()
   if (!s || !s.moodle_token) return { userId, skipped: 'no token' }
 
+  const LOOKBACK_DAYS = 14
+  const LIMIT = 50
+  const timesortfromSec = Math.floor(Date.now() / 1000) - LOOKBACK_DAYS * 86400
   const params = new URLSearchParams({
     wstoken: s.moodle_token,
     wsfunction: 'core_calendar_get_action_events_by_timesort',
     moodlewsrestformat: 'json',
-    timesortfrom: String(Math.floor(Date.now() / 1000) - 14 * 86400),
-    limitnum: '50',
+    timesortfrom: String(timesortfromSec),
+    limitnum: String(LIMIT),
   })
   const res = await fetch(s.moodle_url + '/webservice/rest/server.php?' + params.toString())
   if (!res.ok) return { userId, error: 'moodle http ' + res.status }
@@ -41,16 +44,27 @@ async function syncUser(admin: any, userId: string) {
 
   const { data: existing } = await admin
     .from('tasks')
-    .select('id, moodle_event_id, done')
+    .select('id, moodle_event_id, done, due')
     .eq('user_id', userId)
     .eq('source', 'moodle')
   // deno-lint-ignore no-explicit-any
   const eventIds = new Set(events.map((e: any) => e.id))
-  const submitted = (existing ?? [])
-    // deno-lint-ignore no-explicit-any
-    .filter((t: any) => !eventIds.has(t.moodle_event_id) && !t.done)
-    // deno-lint-ignore no-explicit-any
-    .map((t: any) => t.id)
+  // 「イベント一覧から消えた = 提出した」とみなして done 化する。ただし、取得ウィンドウ
+  // (timesortfrom 以降・最大 LIMIT 件)から溢れただけの未提出課題を「提出済み」に
+  // してしまわないよう、確実にウィンドウ内にあるはずの課題だけを対象にする:
+  //  - 取得件数が上限に達した回は取りこぼしがあり得るので、一切 done 化しない
+  //  - 期限が lookback より古い課題はウィンドウ外に落ちた可能性があるので触らない
+  //  - 期限不明の課題も安全側に倒して触らない(手動で完了にはできる)
+  const hitLimit = events.length >= LIMIT
+  const submitted = hitLimit
+    ? []
+    : (existing ?? [])
+        // deno-lint-ignore no-explicit-any
+        .filter((t: any) => !eventIds.has(t.moodle_event_id) && !t.done && t.due)
+        // deno-lint-ignore no-explicit-any
+        .filter((t: any) => new Date(t.due).getTime() / 1000 >= timesortfromSec)
+        // deno-lint-ignore no-explicit-any
+        .map((t: any) => t.id)
   if (submitted.length > 0) {
     await admin.from('tasks').update({ done: true }).in('id', submitted)
   }
