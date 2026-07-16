@@ -169,7 +169,10 @@ Deno.serve(async (req) => {
 
     // --- 2. 毎日のまとめ(notify_time以降・1日1回) ---
     let summarized = 0
-    const summaryDue = force || ((s.notified_date ?? '') !== today && hm >= (s.notify_time || '18:00'))
+    // notify_time は time 型だと "18:00:00" で返るため、"HH:MM" に切り詰めてから
+    // 同じ書式の hm と比較する(でないと境界の時刻でまとめ通知が1時間ずれる)
+    const notifyHm = String(s.notify_time || '18:00').slice(0, 5)
+    const summaryDue = force || ((s.notified_date ?? '') !== today && hm >= notifyHm)
     if (summaryDue) {
       const pending = tasks
         .filter((t) => !t.done && t.due)
