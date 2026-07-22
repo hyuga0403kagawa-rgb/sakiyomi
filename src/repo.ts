@@ -418,7 +418,6 @@ export async function fetchSettings(): Promise<Settings> {
     avatarUrl: data.avatar_url ?? undefined,
     timetableDays: data.timetable_days ?? undefined,
     currentSemester: data.current_semester ?? undefined,
-    classReminderMinutes: data.class_reminder_minutes ?? undefined,
   }
 }
 
@@ -442,7 +441,6 @@ export async function saveSettingsCloud(s: Settings): Promise<void> {
     avatar_url: s.avatarUrl ?? null,
     timetable_days: s.timetableDays ?? null,
     current_semester: s.currentSemester ?? null,
-    class_reminder_minutes: s.classReminderMinutes ?? null,
   })
   if (error) throw error
 }

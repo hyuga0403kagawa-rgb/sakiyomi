@@ -36,8 +36,6 @@ export interface Settings {
   timetableDays?: TimetableDays
   /** 現在表示している学期(時間割の切り替え単位) */
   currentSemester?: string
-  /** 授業開始の何分前に通知するか(分)。0/未設定はオフ */
-  classReminderMinutes?: number
 }
 
 /** 時間割の表示曜日: 平日のみ / 平日+土 / 平日+土日 */
