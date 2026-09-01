@@ -6,6 +6,7 @@ import {
   Calendar,
   CalendarDays,
   Check,
+  Copy,
   CheckCircle2,
   ChevronDown,
   CircleUser,
@@ -1057,6 +1058,103 @@ function CollapsibleSection(props: {
   )
 }
 
+/** カレンダー連携カード。ICS購読URLを発行してGoogle/iPhoneのカレンダーに登録してもらう */
+function CalendarFeedCard(props: { onFlash: (text: string) => void }) {
+  const { onFlash } = props
+  const [url, setUrl] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const issue = async (regenerate = false) => {
+    if (
+      regenerate &&
+      !window.confirm(
+        'URLを再発行すると、いまカレンダーに登録済みのURLは無効になります(新しいURLで登録し直しが必要です)。再発行しますか?',
+      )
+    )
+      return
+    setBusy(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('calendar-feed', {
+        body: { regenerate },
+      })
+      if (error || data?.error) throw new Error(data?.error ?? 'URLの発行に失敗しました')
+      setUrl(data.url)
+      if (regenerate) onFlash('新しいURLを発行しました(前のURLは無効です)')
+    } catch (e) {
+      onFlash(e instanceof Error ? e.message : 'URLの発行に失敗しました')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const copy = async () => {
+    if (!url) return
+    try {
+      await navigator.clipboard.writeText(url)
+      onFlash('URLをコピーしました')
+    } catch {
+      onFlash('コピーできませんでした。URLを長押しで選択してコピーしてください')
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+        <Calendar className="h-4 w-4 text-gray-400" />
+        カレンダー連携
+      </h3>
+      <p className="mt-1 text-xs text-gray-500">
+        課題の提出期限・時間割・就活の予定を、Googleカレンダーや
+        iPhoneの標準カレンダーに表示できます。
+      </p>
+      {!url ? (
+        <button
+          onClick={() => issue(false)}
+          disabled={busy}
+          className="mt-3 w-full rounded-lg border border-primary py-2 text-sm font-semibold text-primary disabled:opacity-50"
+        >
+          {busy ? '発行中…' : '連携用URLを表示'}
+        </button>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <input
+              readOnly
+              value={url}
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[11px] text-gray-600"
+            />
+            <button
+              onClick={copy}
+              className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              コピー
+            </button>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-2.5 text-xs leading-relaxed text-gray-600">
+            <p className="font-semibold text-gray-700">登録のしかた</p>
+            <p className="mt-1">
+              <span className="font-medium">Googleカレンダー:</span> PCのブラウザで開き、左の「他のカレンダー」の＋ →「URLで追加」にこのURLを貼り付け
+            </p>
+            <p className="mt-1">
+              <span className="font-medium">iPhoneカレンダー:</span> 設定 → カレンダー → アカウント → アカウントを追加 → その他 →「照会カレンダーを追加」にこのURLを貼り付け
+            </p>
+          </div>
+          <p className="text-[11px] text-gray-400">
+            ※予定の反映はカレンダー側の仕様で数時間〜1日ほど遅れることがあります。
+            時間割は学期の期間中、毎週表示されます(長期休み中も含む)。
+            URLを知っている人はあなたの予定を見られるので、他人に共有しないでください。
+          </p>
+          <button onClick={() => issue(true)} disabled={busy} className="text-[11px] text-gray-400 underline">
+            URLを再発行する(前のURLを無効化)
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** プロフィール編集の別画面(マイページの「プロフィール詳細」から遷移) */
 function ProfileDetailScreen(props: {
   settings: Settings
@@ -1212,6 +1310,8 @@ function SettingsTab(props: {
       </button>
 
       <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
+
+      <CalendarFeedCard onFlash={onFlash} />
 
       {isKagawaStudent(settings) && (
         <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
