@@ -1063,6 +1063,8 @@ function CalendarFeedCard(props: { onFlash: (text: string) => void }) {
   const { onFlash } = props
   const [url, setUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [showManual, setShowManual] = useState(false)
+  const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
 
   const issue = async (regenerate = false) => {
     if (
@@ -1097,6 +1099,16 @@ function CalendarFeedCard(props: { onFlash: (text: string) => void }) {
     }
   }
 
+  const webcalUrl = url ? url.replace(/^https:\/\//, 'webcal://') : null
+  const googleAddUrl = webcalUrl
+    ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcalUrl)}`
+    : null
+
+  const primaryBtn =
+    'block w-full rounded-lg bg-primary py-2.5 text-center text-sm font-semibold text-white'
+  const secondaryBtn =
+    'block w-full rounded-lg border border-gray-200 py-2.5 text-center text-sm font-medium text-gray-700'
+
   return (
     <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
       <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
@@ -1105,7 +1117,7 @@ function CalendarFeedCard(props: { onFlash: (text: string) => void }) {
       </h3>
       <p className="mt-1 text-xs text-gray-500">
         課題の提出期限・時間割・就活の予定を、Googleカレンダーや
-        iPhoneの標準カレンダーに表示できます。
+        iPhoneの標準カレンダーに表示できます。ボタン1つ、スマホだけで登録できます。
       </p>
       {!url ? (
         <button
@@ -1113,40 +1125,78 @@ function CalendarFeedCard(props: { onFlash: (text: string) => void }) {
           disabled={busy}
           className="mt-3 w-full rounded-lg border border-primary py-2 text-sm font-semibold text-primary disabled:opacity-50"
         >
-          {busy ? '発行中…' : '連携用URLを表示'}
+          {busy ? '発行中…' : '連携する'}
         </button>
       ) : (
         <div className="mt-3 space-y-2">
-          <div className="flex items-center gap-1.5">
-            <input
-              readOnly
-              value={url}
-              onFocus={(e) => e.currentTarget.select()}
-              className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[11px] text-gray-600"
-            />
-            <button
-              onClick={copy}
-              className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              コピー
-            </button>
-          </div>
-          <div className="rounded-lg bg-gray-50 p-2.5 text-xs leading-relaxed text-gray-600">
-            <p className="font-semibold text-gray-700">登録のしかた</p>
-            <p className="mt-1">
-              <span className="font-medium">Googleカレンダー:</span> PCのブラウザで開き、左の「他のカレンダー」の＋ →「URLで追加」にこのURLを貼り付け
-            </p>
-            <p className="mt-1">
-              <span className="font-medium">iPhoneカレンダー:</span> 設定 → カレンダー → アカウント → アカウントを追加 → その他 →「照会カレンダーを追加」にこのURLを貼り付け
-            </p>
-          </div>
+          {isIOS ? (
+            <>
+              <a href={webcalUrl!} className={primaryBtn}>
+                📅 iPhoneのカレンダーに追加
+              </a>
+              <a href={googleAddUrl!} target="_blank" rel="noopener noreferrer" className={secondaryBtn}>
+                Googleカレンダーに追加
+              </a>
+            </>
+          ) : (
+            <>
+              <a href={googleAddUrl!} target="_blank" rel="noopener noreferrer" className={primaryBtn}>
+                📅 Googleカレンダーに追加
+              </a>
+              <a href={webcalUrl!} className={secondaryBtn}>
+                iPhoneのカレンダーに追加
+              </a>
+            </>
+          )}
+          <p className="text-[11px] text-gray-500">
+            タップするとカレンダーアプリが開くので、「登録」または「追加」を選んでください。
+          </p>
           <p className="text-[11px] text-gray-400">
             ※予定の反映はカレンダー側の仕様で数時間〜1日ほど遅れることがあります。
             時間割は学期の期間中、毎週表示されます(長期休み中も含む)。
             URLを知っている人はあなたの予定を見られるので、他人に共有しないでください。
           </p>
-          <button onClick={() => issue(true)} disabled={busy} className="text-[11px] text-gray-400 underline">
+
+          <button
+            onClick={() => setShowManual((v) => !v)}
+            className="text-[11px] text-gray-400 underline"
+          >
+            {showManual ? '閉じる' : 'うまく開かない場合(URLを直接登録)'}
+          </button>
+          {showManual && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <input
+                  readOnly
+                  value={url}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[11px] text-gray-600"
+                />
+                <button
+                  onClick={copy}
+                  className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  コピー
+                </button>
+              </div>
+              <div className="rounded-lg bg-gray-50 p-2.5 text-xs leading-relaxed text-gray-600">
+                <p className="font-semibold text-gray-700">登録のしかた(手動)</p>
+                <p className="mt-1">
+                  <span className="font-medium">Googleカレンダー:</span> 左の「他のカレンダー」の＋ →「URLで追加」にこのURLを貼り付け
+                </p>
+                <p className="mt-1">
+                  <span className="font-medium">iPhoneカレンダー:</span> 設定 → カレンダー → アカウント → アカウントを追加 → その他 →「照会カレンダーを追加」にこのURLを貼り付け
+                </p>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => issue(true)}
+            disabled={busy}
+            className="block text-[11px] text-gray-400 underline"
+          >
             URLを再発行する(前のURLを無効化)
           </button>
         </div>
