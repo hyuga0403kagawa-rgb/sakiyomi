@@ -418,6 +418,10 @@ export async function fetchSettings(): Promise<Settings> {
     avatarUrl: data.avatar_url ?? undefined,
     timetableDays: data.timetable_days ?? undefined,
     currentSemester: data.current_semester ?? undefined,
+    calendarTasks: data.calendar_tasks ?? undefined,
+    calendarExams: data.calendar_exams ?? undefined,
+    calendarTimetable: data.calendar_timetable ?? undefined,
+    calendarJobs: data.calendar_jobs ?? undefined,
   }
 }
 
@@ -441,6 +445,10 @@ export async function saveSettingsCloud(s: Settings): Promise<void> {
     avatar_url: s.avatarUrl ?? null,
     timetable_days: s.timetableDays ?? null,
     current_semester: s.currentSemester ?? null,
+    calendar_tasks: s.calendarTasks ?? true,
+    calendar_exams: s.calendarExams ?? true,
+    calendar_timetable: s.calendarTimetable ?? true,
+    calendar_jobs: s.calendarJobs ?? true,
   })
   if (error) throw error
 }

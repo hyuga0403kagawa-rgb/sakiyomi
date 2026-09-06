@@ -78,6 +78,9 @@ async function syncUser(admin: any, userId: string) {
       due: new Date(ev.timesort * 1000).toISOString(),
       source: 'moodle',
       moodle_event_id: ev.id,
+      // 'quiz'(小テスト・試験)と 'assign'(課題)などを区別する。
+      // カレンダー連携で「テスト」と「課題」を別々にオン/オフするために保存する。
+      moodle_module: ev.modulename ?? null,
     }))
     const { error } = await admin.from('tasks').upsert(rows, { onConflict: 'user_id,moodle_event_id' })
     if (error) return { userId, error: error.message }

@@ -1059,12 +1059,30 @@ function CollapsibleSection(props: {
 }
 
 /** カレンダー連携カード。ICS購読URLを発行してGoogle/iPhoneのカレンダーに登録してもらう */
-function CalendarFeedCard(props: { onFlash: (text: string) => void }) {
-  const { onFlash } = props
+/** カレンダーに含める種類の切り替え定義 */
+const CALENDAR_KINDS = [
+  { key: 'calendarTasks', label: '課題の締め切り', hint: 'レポート・提出物の期限' },
+  { key: 'calendarExams', label: 'テストの日程', hint: 'Moodleの小テスト・試験' },
+  { key: 'calendarTimetable', label: '時間割', hint: '毎週の授業(教室つき)' },
+  { key: 'calendarJobs', label: '就活の予定', hint: '説明会・選考など' },
+] as const satisfies readonly { key: keyof Settings; label: string; hint: string }[]
+
+function CalendarFeedCard(props: {
+  settings: Settings
+  onSaveSettings: (s: Settings) => Promise<void> | void
+  onFlash: (text: string) => void
+}) {
+  const { settings, onSaveSettings, onFlash } = props
   const [url, setUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [showManual, setShowManual] = useState(false)
   const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
+
+  // 未設定(undefined)はオン扱い
+  const isOn = (key: (typeof CALENDAR_KINDS)[number]['key']) => settings[key] !== false
+  const toggle = (key: (typeof CALENDAR_KINDS)[number]['key']) => {
+    void onSaveSettings({ ...settings, [key]: !isOn(key) })
+  }
 
   const issue = async (regenerate = false) => {
     if (
@@ -1151,6 +1169,40 @@ function CalendarFeedCard(props: { onFlash: (text: string) => void }) {
           <p className="text-[11px] text-gray-500">
             タップするとカレンダーアプリが開くので、「登録」または「追加」を選んでください。
           </p>
+
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
+            <p className="text-xs font-semibold text-gray-700">カレンダーに表示するもの</p>
+            <div className="mt-1.5 space-y-1.5">
+              {CALENDAR_KINDS.map((k) => (
+                <label key={k.key} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isOn(k.key)}
+                    aria-label={k.label}
+                    onClick={() => toggle(k.key)}
+                    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                      isOn(k.key) ? 'bg-primary' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                        isOn(k.key) ? 'translate-x-4.5' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-medium text-gray-800">{k.label}</span>
+                    <span className="block text-[10px] text-gray-400">{k.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] text-gray-400">
+              切り替えは登録済みのカレンダーにも反映されます(URLの登録し直しは不要。
+              反映まで数時間〜1日かかります)。
+            </p>
+          </div>
           <p className="text-[11px] text-gray-400">
             ※予定の反映はカレンダー側の仕様で数時間〜1日ほど遅れることがあります。
             時間割は学期の期間中、毎週表示されます(長期休み中も含む)。
@@ -1361,7 +1413,7 @@ function SettingsTab(props: {
 
       <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
 
-      <CalendarFeedCard onFlash={onFlash} />
+      <CalendarFeedCard settings={settings} onSaveSettings={onSave} onFlash={onFlash} />
 
       {isKagawaStudent(settings) && (
         <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">

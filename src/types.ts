@@ -36,6 +36,11 @@ export interface Settings {
   timetableDays?: TimetableDays
   /** 現在表示している学期(時間割の切り替え単位) */
   currentSemester?: string
+  /** カレンダー連携に含める種類。未設定はオン扱い */
+  calendarTasks?: boolean
+  calendarExams?: boolean
+  calendarTimetable?: boolean
+  calendarJobs?: boolean
 }
 
 /** 時間割の表示曜日: 平日のみ / 平日+土 / 平日+土日 */
