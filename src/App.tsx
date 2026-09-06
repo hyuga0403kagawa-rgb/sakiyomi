@@ -1172,30 +1172,36 @@ function CalendarFeedCard(props: {
 
           <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
             <p className="text-xs font-semibold text-gray-700">カレンダーに表示するもの</p>
-            <div className="mt-1.5 space-y-1.5">
+            <div className="mt-1.5 divide-y divide-gray-100">
               {CALENDAR_KINDS.map((k) => (
-                <label key={k.key} className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={isOn(k.key)}
-                    aria-label={k.label}
-                    onClick={() => toggle(k.key)}
-                    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-                      isOn(k.key) ? 'bg-primary' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-                        isOn(k.key) ? 'translate-x-4.5' : 'translate-x-0.5'
-                      }`}
-                    />
-                  </button>
+                <button
+                  key={k.key}
+                  type="button"
+                  role="switch"
+                  aria-checked={isOn(k.key)}
+                  onClick={() => toggle(k.key)}
+                  className="flex w-full items-center gap-3 py-2 text-left"
+                >
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-medium text-gray-800">{k.label}</span>
                     <span className="block text-[10px] text-gray-400">{k.hint}</span>
                   </span>
-                </label>
+                  {/* トグルスイッチ。ノブの移動は left で行う(Tailwind v4 の translate は
+                      transition と併用すると値が古いまま固まる)。任意値クラスは使わず
+                      標準の間隔スケールだけで左右対称になる寸法にしている:
+                      トラック 40px / ノブ 16px / 余白 4px */}
+                  <span
+                    className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${
+                      isOn(k.key) ? 'bg-primary' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-[left] duration-200 ${
+                        isOn(k.key) ? 'left-5' : 'left-1'
+                      }`}
+                    />
+                  </span>
+                </button>
               ))}
             </div>
             <p className="mt-2 text-[10px] text-gray-400">
