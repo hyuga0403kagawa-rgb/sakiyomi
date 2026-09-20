@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アンケート集計 — UniPort</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="./uniport-icon.svg">
+<style>
+  :root {
+    --teal: #046e7a;
+    --teal-soft: #e8f2f3;
+    --amber: #d98a1f;
+    --ink: #0f2a2e;
+    --muted: #5b6b70;
+    --line: #dfe6e5;
+    --bg: #f7f9f8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+    line-height: 1.6; -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+  .top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .badge { font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--teal); margin: 0 0 4px; }
+  h1 { font-size: 21px; margin: 0; }
+  .total { font-size: 15px; color: var(--muted); margin: 6px 0 0; }
+  .total b { font-size: 30px; color: var(--ink); font-weight: 800; }
+  button {
+    border: 1px solid var(--teal); background: #fff; color: var(--teal);
+    border-radius: 9px; font: inherit; font-size: 14px; font-weight: 700;
+    padding: 9px 16px; cursor: pointer; white-space: nowrap;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 12px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; }
+  .hl { display: flex; flex-wrap: wrap; gap: 10px; }
+  .hl div {
+    flex: 1 1 calc(50% - 10px); min-width: 150px;
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+  }
+  .hl .n { font-size: 32px; font-weight: 800; color: var(--amber); line-height: 1.2; }
+  .hl .t { font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .row { margin-bottom: 9px; }
+  .row:last-child { margin-bottom: 0; }
+  .rh { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+  .rh .lab { color: var(--ink); }
+  .rh .val { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar { height: 8px; background: #eef2f1; border-radius: 4px; margin-top: 4px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--teal); border-radius: 4px; }
+  .note { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+  ul.cm { list-style: none; padding: 0; margin: 0; }
+  ul.cm li {
+    border-left: 3px solid var(--teal-soft); padding: 6px 0 6px 12px;
+    margin-bottom: 10px; font-size: 14px; white-space: pre-wrap; word-break: break-word;
+  }
+  .msg { padding: 40px 16px; text-align: center; color: var(--muted); font-size: 15px; }
+  .msg.err { color: #a32626; }
+  .stamp { font-size: 12px; color: var(--muted); text-align: right; margin: 14px 0 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <p class="badge">UNIPORT</p>
+      <h1>アンケート集計</h1>
+      <p class="total" id="total"></p>
+    </div>
+    <button id="reload">更新</button>
+  </div>
+
+  <div id="msg" class="msg">読み込み中…</div>
+  <div id="body" hidden></div>
+  <p class="stamp" id="stamp"></p>
+</div>
+
+<script>
+  var ENDPOINT = 'https://kdyffkcowdkbgtbledbc.supabase.co/functions/v1/survey';
+
+  var QUESTIONS = [
+    ['grade', 'Q1. 学年', false],
+    ['system_count', 'Q2. 使っているサイト・アプリの数', false],
+    ['manage_where', 'Q3. 締め切りの管理方法', true],
+    ['near_miss', 'Q4. 締め切りを忘れそうになったことは', false],
+    ['missed', 'Q5. 実際に間に合わなかったことは', false],
+    ['moodle_usability', 'Q6. Moodleの使いやすさ', false],
+    ['want_notify', 'Q7. 自動通知を使いたいか', false]
+  ];
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text; // 常にtextContent(自由記述の埋め込み対策)
+    return e;
+  }
+
+  function render(d) {
+    var body = document.getElementById('body');
+    body.textContent = '';
+
+    document.getElementById('total').innerHTML = '';
+    var t = document.getElementById('total');
+    var b = el('b', null, String(d.total));
+    t.appendChild(b);
+    t.appendChild(document.createTextNode(' 件の回答'));
+
+    if (d.total === 0) {
+      body.appendChild(el('div', 'msg', 'まだ回答がありません。'));
+      body.hidden = false;
+      return;
+    }
+
+    // 発表に使える割合
+    var hc = el('div', 'card');
+    hc.appendChild(el('h2', null, '発表に使える割合'));
+    var hl = el('div', 'hl');
+    Object.keys(d.highlights).forEach(function (k) {
+      var box = el('div');
+      box.appendChild(el('div', 'n', d.highlights[k] + '%'));
+      box.appendChild(el('div', 't', k));
+      hl.appendChild(box);
+    });
+    hc.appendChild(hl);
+    body.appendChild(hc);
+
+    // 設問ごとの内訳
+    QUESTIONS.forEach(function (q) {
+      var key = q[0], label = q[1], multi = q[2];
+      var counts = d.counts[key];
+      if (!counts) return;
+      var c = el('div', 'card');
+      c.appendChild(el('h2', null, label));
+      Object.keys(counts).forEach(function (opt) {
+        var n = counts[opt];
+        var pct = d.total ? Math.round(n / d.total * 100) : 0;
+        var row = el('div', 'row');
+        var head = el('div', 'rh');
+        head.appendChild(el('span', 'lab', opt));
+        head.appendChild(el('span', 'val', n + '件 / ' + pct + '%'));
+        row.appendChild(head);
+        var bar = el('div', 'bar');
+        var fill = el('i');
+        fill.style.width = pct + '%';
+        bar.appendChild(fill);
+        row.appendChild(bar);
+        c.appendChild(row);
+      });
+      if (multi) c.appendChild(el('p', 'note', '複数選択のため、合計は100%を超えます'));
+      body.appendChild(c);
+    });
+
+    // 自由記述
+    if (d.comments && d.comments.length) {
+      var cc = el('div', 'card');
+      cc.appendChild(el('h2', null, '自由記述（' + d.comments.length + '件）'));
+      var ul = el('ul', 'cm');
+      d.comments.forEach(function (s) { ul.appendChild(el('li', null, s)); });
+      cc.appendChild(ul);
+      body.appendChild(cc);
+    }
+
+    body.hidden = false;
+  }
+
+  function load() {
+    var token = new URLSearchParams(location.search).get('token') || '';
+    var msg = document.getElementById('msg');
+    var body = document.getElementById('body');
+    var btn = document.getElementById('reload');
+
+    if (!token) {
+      msg.className = 'msg err';
+      msg.textContent = 'URLに token が付いていません。集計用のURLを開いてください。';
+      msg.hidden = false;
+      body.hidden = true;
+      return;
+    }
+
+    btn.disabled = true;
+    msg.className = 'msg';
+    msg.textContent = '読み込み中…';
+    msg.hidden = false;
+    body.hidden = true;
+
+    fetch(ENDPOINT + '?token=' + encodeURIComponent(token))
+      .then(function (r) {
+        return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; });
+      })
+      .then(function (res) {
+        if (res.status === 401) throw new Error('token が違います。集計用のURLを確認してください。');
+        if (!res.ok) throw new Error('読み込みに失敗しました。');
+        msg.hidden = true;
+        render(res.j);
+        var now = new Date();
+        var p = function (n) { return String(n).padStart(2, '0'); };
+        document.getElementById('stamp').textContent =
+          '最終更新 ' + p(now.getHours()) + ':' + p(now.getMinutes());
+      })
+      .catch(function (e) {
+        msg.className = 'msg err';
+        msg.textContent = e.message || '読み込みに失敗しました。';
+        msg.hidden = false;
+      })
+      .finally(function () { btn.disabled = false; });
+  }
+
+  document.getElementById('reload').addEventListener('click', load);
+  load();
+</script>
+</body>
+</html>
