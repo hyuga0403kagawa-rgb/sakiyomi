@@ -26,6 +26,7 @@ import type { Session } from '@supabase/supabase-js'
 import type { Settings, Task, TimetableSlot } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
+import { isDemo } from './demo'
 import * as repo from './repo'
 import { loadSettings as loadLocalSettings, loadTasks as loadLocalTasks } from './storage'
 import { connectMoodle, syncMoodleViaServer } from './moodle'
@@ -67,6 +68,7 @@ export default function App() {
   const [recovery, setRecovery] = useState(false)
 
   useEffect(() => {
+    if (isDemo()) return // デモモードではログイン状態を見に行かない
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setAuthReady(true)
@@ -79,6 +81,8 @@ export default function App() {
     return () => sub.subscription.unsubscribe()
   }, [])
 
+  // デモモード(QRコードから ?demo=1)は、ログインなしで見学用データを表示する
+  if (isDemo()) return <Home key="demo" />
   if (!authReady) {
     return <div className="flex min-h-screen items-center justify-center text-gray-400">読み込み中…</div>
   }
@@ -167,6 +171,10 @@ function Home() {
   }
 
   const performSync = async (silent = false) => {
+    if (isDemo()) {
+      if (!silent) flash('デモでは同期できません（表示中のデータは見学用のサンプルです）')
+      return
+    }
     setSyncing(true)
     try {
       await syncMoodleViaServer()
@@ -381,6 +389,11 @@ function Home() {
 
   return (
     <div className="mx-auto min-h-screen max-w-md bg-white pb-24">
+      {isDemo() && (
+        <div className="bg-amber-100 px-4 py-2 text-center text-xs font-medium text-amber-900">
+          デモモード — 見学用のサンプルデータです。自由に触っても実際のデータには影響しません
+        </div>
+      )}
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
         <h1 className="text-lg font-semibold tracking-tight text-gray-900">UniPort</h1>
         <span className="flex items-center gap-1 text-[11px] text-gray-400">
@@ -1085,6 +1098,10 @@ function CalendarFeedCard(props: {
   }
 
   const issue = async (regenerate = false) => {
+    if (isDemo()) {
+      onFlash('デモではカレンダー連携用URLの発行はできません')
+      return
+    }
     if (
       regenerate &&
       !window.confirm(
@@ -1320,6 +1337,10 @@ function SettingsTab(props: {
     })
 
   const handleEnablePush = async () => {
+    if (isDemo()) {
+      onFlash('デモでは通知の登録はできません')
+      return
+    }
     setEnabling(true)
     try {
       const { enablePush } = await import('./push')
@@ -1417,7 +1438,7 @@ function SettingsTab(props: {
         <span className="text-gray-300">›</span>
       </button>
 
-      <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />
+      {!isDemo() && <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />}
 
       <CalendarFeedCard settings={settings} onSaveSettings={onSave} onFlash={onFlash} />
 
@@ -1533,19 +1554,36 @@ function SettingsTab(props: {
           </div>
 
           <div className="space-y-3 border-t border-gray-100 pt-4">
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="w-full rounded-lg border border-gray-300 py-2 text-sm text-gray-500"
-            >
-              ログアウト
-            </button>
-            <button
-              onClick={handleDeleteAccount}
-              disabled={deleting}
-              className="w-full rounded-lg border border-red-200 py-2 text-sm text-red-400 disabled:opacity-50"
-            >
-              {deleting ? '削除中…' : 'アカウントを削除(全データ消去)'}
-            </button>
+            {isDemo() ? (
+              <>
+                <p className="text-xs text-gray-500">
+                  デモモードのため、ログアウトとアカウント削除は使えません。
+                  本番では、ここからアカウントと全データをその場で削除できます。
+                </p>
+                <a
+                  href="./?demo=0"
+                  className="block w-full rounded-lg border border-gray-300 py-2 text-center text-sm text-gray-500"
+                >
+                  デモを終了する
+                </a>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="w-full rounded-lg border border-gray-300 py-2 text-sm text-gray-500"
+                >
+                  ログアウト
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleting}
+                  className="w-full rounded-lg border border-red-200 py-2 text-sm text-red-400 disabled:opacity-50"
+                >
+                  {deleting ? '削除中…' : 'アカウントを削除(全データ消去)'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </CollapsibleSection>

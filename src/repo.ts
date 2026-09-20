@@ -14,8 +14,10 @@ import type {
   TimetableSlot,
 } from './types'
 import { DEFAULT_SETTINGS } from './types'
+import { demoId, demoStore, isDemo } from './demo'
 
 // Supabaseとのやり取りをここに集約する(App側はTask/Settings型だけを扱う)
+// デモモード(?demo=1)のときは、Supabaseを一切使わず端末のメモリ上のデータを返す。
 
 interface TaskRow {
   id: string
@@ -56,23 +58,39 @@ function toRow(t: Omit<Task, 'id' | 'createdAt'>): Omit<TaskRow, 'id' | 'created
 }
 
 export async function fetchTasks(): Promise<Task[]> {
+  if (isDemo()) return [...demoStore().tasks]
   const { data, error } = await supabase.from('tasks').select('*')
   if (error) throw error
   return (data as TaskRow[]).map(toTask)
 }
 
 export async function insertTask(t: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
+  if (isDemo()) {
+    const created: Task = { ...t, id: demoId(), createdAt: new Date().toISOString() }
+    demoStore().tasks.push(created)
+    return created
+  }
   const { data, error } = await supabase.from('tasks').insert(toRow(t)).select().single()
   if (error) throw error
   return toTask(data as TaskRow)
 }
 
 export async function updateTask(t: Task): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.tasks = s.tasks.map((x) => (x.id === t.id ? t : x))
+    return
+  }
   const { error } = await supabase.from('tasks').update(toRow(t)).eq('id', t.id)
   if (error) throw error
 }
 
 export async function deleteTask(id: string): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.tasks = s.tasks.filter((x) => x.id !== id)
+    return
+  }
   const { error } = await supabase.from('tasks').delete().eq('id', id)
   if (error) throw error
 }
@@ -80,6 +98,7 @@ export async function deleteTask(id: string): Promise<void> {
 // ---------- 時間割 ----------
 
 export async function fetchTimetable(): Promise<TimetableSlot[]> {
+  if (isDemo()) return [...demoStore().slots]
   const { data, error } = await supabase.from('timetable_slots').select('*')
   if (error) throw error
   return data.map((r) => ({
@@ -99,6 +118,20 @@ export async function addTimetableSlot(
   semester: string,
   room?: string,
 ): Promise<TimetableSlot> {
+  if (isDemo()) {
+    const s = demoStore()
+    const found = s.slots.find(
+      (x) => x.day === day && x.period === period && x.semester === semester,
+    )
+    if (found) {
+      found.course = course
+      found.room = room || undefined
+      return { ...found }
+    }
+    const created: TimetableSlot = { id: demoId(), day, period, course, room: room || undefined, semester }
+    s.slots.push(created)
+    return created
+  }
   const { data, error } = await supabase
     .from('timetable_slots')
     .upsert(
@@ -119,6 +152,11 @@ export async function addTimetableSlot(
 }
 
 export async function deleteTimetableSlot(id: string): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.slots = s.slots.filter((x) => x.id !== id)
+    return
+  }
   const { error } = await supabase.from('timetable_slots').delete().eq('id', id)
   if (error) throw error
 }
@@ -126,6 +164,7 @@ export async function deleteTimetableSlot(id: string): Promise<void> {
 // ---------- 講義情報(シラバス) ----------
 
 export async function fetchCourseInfo(course: string): Promise<CourseInfo | null> {
+  if (isDemo()) return demoStore().courseInfo.find((c) => c.course === course) ?? null
   const { data, error } = await supabase
     .from('course_info')
     .select('*')
@@ -147,6 +186,11 @@ export async function fetchCourseInfo(course: string): Promise<CourseInfo | null
 
 /** 全講義の色を { 講義名: 色キー } でまとめて取得(時間割の色付け用) */
 export async function fetchCourseColors(): Promise<Record<string, string>> {
+  if (isDemo()) {
+    const map: Record<string, string> = {}
+    for (const c of demoStore().courseInfo) if (c.color) map[c.course] = c.color
+    return map
+  }
   const { data, error } = await supabase.from('course_info').select('course, color')
   if (error) throw error
   const map: Record<string, string> = {}
@@ -155,6 +199,13 @@ export async function fetchCourseColors(): Promise<Record<string, string>> {
 }
 
 export async function upsertCourseInfo(info: CourseInfo): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    const i = s.courseInfo.findIndex((c) => c.course === info.course)
+    if (i >= 0) s.courseInfo[i] = info
+    else s.courseInfo.push(info)
+    return
+  }
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id
   if (!userId) throw new Error('ログインしていません')
@@ -178,6 +229,11 @@ export async function upsertCourseInfo(info: CourseInfo): Promise<void> {
 // ---------- 出席管理 ----------
 
 export async function fetchAttendance(course: string): Promise<AttendanceRecord[]> {
+  if (isDemo()) {
+    return demoStore()
+      .attendance.filter((a) => a.course === course)
+      .sort((a, b) => b.date.localeCompare(a.date))
+  }
   const { data, error } = await supabase
     .from('attendance_records')
     .select('*')
@@ -191,6 +247,18 @@ export async function addAttendance(
   course: string,
   status: AttendanceStatus,
 ): Promise<AttendanceRecord> {
+  if (isDemo()) {
+    const now = new Date()
+    const p = (n: number) => String(n).padStart(2, '0')
+    const created: AttendanceRecord = {
+      id: demoId(),
+      course,
+      date: `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`,
+      status,
+    }
+    demoStore().attendance.push(created)
+    return created
+  }
   const { data, error } = await supabase
     .from('attendance_records')
     .insert({ course, status })
@@ -201,6 +269,11 @@ export async function addAttendance(
 }
 
 export async function deleteAttendance(id: string): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.attendance = s.attendance.filter((a) => a.id !== id)
+    return
+  }
   const { error } = await supabase.from('attendance_records').delete().eq('id', id)
   if (error) throw error
 }
@@ -208,6 +281,7 @@ export async function deleteAttendance(id: string): Promise<void> {
 // ---------- 就活: エントリー締切 ----------
 
 export async function fetchJobEntries(): Promise<JobEntry[]> {
+  if (isDemo()) return [...demoStore().jobEntries]
   const { data, error } = await supabase.from('job_entries').select('*')
   if (error) throw error
   return data.map((r) => ({
@@ -222,6 +296,11 @@ export async function fetchJobEntries(): Promise<JobEntry[]> {
 }
 
 export async function addJobEntry(e: Omit<JobEntry, 'id' | 'done'>): Promise<JobEntry> {
+  if (isDemo()) {
+    const created: JobEntry = { ...e, id: demoId(), done: false }
+    demoStore().jobEntries.push(created)
+    return created
+  }
   const { data, error } = await supabase
     .from('job_entries')
     .insert({
@@ -246,16 +325,31 @@ export async function addJobEntry(e: Omit<JobEntry, 'id' | 'done'>): Promise<Job
 }
 
 export async function updateJobEntryDone(id: string, done: boolean): Promise<void> {
+  if (isDemo()) {
+    const e = demoStore().jobEntries.find((x) => x.id === id)
+    if (e) e.done = done
+    return
+  }
   const { error } = await supabase.from('job_entries').update({ done }).eq('id', id)
   if (error) throw error
 }
 
 export async function updateJobEntryStatus(id: string, status: string | null): Promise<void> {
+  if (isDemo()) {
+    const e = demoStore().jobEntries.find((x) => x.id === id)
+    if (e) e.status = status ?? undefined
+    return
+  }
   const { error } = await supabase.from('job_entries').update({ status }).eq('id', id)
   if (error) throw error
 }
 
 export async function deleteJobEntry(id: string): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.jobEntries = s.jobEntries.filter((x) => x.id !== id)
+    return
+  }
   const { error } = await supabase.from('job_entries').delete().eq('id', id)
   if (error) throw error
 }
@@ -263,6 +357,7 @@ export async function deleteJobEntry(id: string): Promise<void> {
 // ---------- 就活: 自己分析メモ ----------
 
 export async function fetchJobNotes(): Promise<JobNote[]> {
+  if (isDemo()) return [...demoStore().jobNotes]
   const { data, error } = await supabase
     .from('job_notes')
     .select('*')
@@ -277,6 +372,11 @@ export async function fetchJobNotes(): Promise<JobNote[]> {
 }
 
 export async function addJobNote(n: Omit<JobNote, 'id'>): Promise<JobNote> {
+  if (isDemo()) {
+    const created: JobNote = { ...n, id: demoId() }
+    demoStore().jobNotes.unshift(created)
+    return created
+  }
   const { data, error } = await supabase
     .from('job_notes')
     .insert({ category: n.category, title: n.title ?? null, body: n.body })
@@ -287,6 +387,11 @@ export async function addJobNote(n: Omit<JobNote, 'id'>): Promise<JobNote> {
 }
 
 export async function updateJobNote(n: JobNote): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.jobNotes = s.jobNotes.map((x) => (x.id === n.id ? n : x))
+    return
+  }
   const { error } = await supabase
     .from('job_notes')
     .update({ category: n.category, title: n.title ?? null, body: n.body, updated_at: new Date().toISOString() })
@@ -295,6 +400,11 @@ export async function updateJobNote(n: JobNote): Promise<void> {
 }
 
 export async function deleteJobNote(id: string): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.jobNotes = s.jobNotes.filter((x) => x.id !== id)
+    return
+  }
   const { error } = await supabase.from('job_notes').delete().eq('id', id)
   if (error) throw error
 }
@@ -302,6 +412,7 @@ export async function deleteJobNote(id: string): Promise<void> {
 // ---------- 就活: プロフィール ----------
 
 export async function fetchJobProfile(): Promise<JobProfile | null> {
+  if (isDemo()) return demoStore().jobProfile
   const { data, error } = await supabase.from('job_profile').select('*').maybeSingle()
   if (error) throw error
   if (!data) return null
@@ -315,6 +426,10 @@ export async function fetchJobProfile(): Promise<JobProfile | null> {
 }
 
 export async function upsertJobProfile(p: JobProfile): Promise<void> {
+  if (isDemo()) {
+    demoStore().jobProfile = p
+    return
+  }
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id
   if (!userId) throw new Error('ログインしていません')
@@ -333,6 +448,7 @@ export async function upsertJobProfile(p: JobProfile): Promise<void> {
 // ---------- 就活: 企業情報 ----------
 
 export async function fetchCompanies(): Promise<Company[]> {
+  if (isDemo()) return []
   const { data, error } = await supabase.from('companies').select('*')
   if (error) throw error
   return data.map((r) => ({
@@ -356,6 +472,7 @@ export async function fetchCompanies(): Promise<Company[]> {
 // ---------- 成績 ----------
 
 export async function fetchGrades(): Promise<Grade[]> {
+  if (isDemo()) return [...demoStore().grades]
   const { data, error } = await supabase
     .from('grades')
     .select('*')
@@ -371,6 +488,11 @@ export async function fetchGrades(): Promise<Grade[]> {
 }
 
 export async function addGrade(g: Omit<Grade, 'id'>): Promise<Grade> {
+  if (isDemo()) {
+    const created: Grade = { ...g, id: demoId() }
+    demoStore().grades.push(created)
+    return created
+  }
   const { data, error } = await supabase
     .from('grades')
     .insert({ course: g.course, term: g.term ?? null, grade: g.grade, credits: g.credits })
@@ -387,6 +509,11 @@ export async function addGrade(g: Omit<Grade, 'id'>): Promise<Grade> {
 }
 
 export async function updateGrade(g: Grade): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.grades = s.grades.map((x) => (x.id === g.id ? g : x))
+    return
+  }
   const { error } = await supabase
     .from('grades')
     .update({ course: g.course, term: g.term ?? null, grade: g.grade, credits: g.credits })
@@ -395,11 +522,17 @@ export async function updateGrade(g: Grade): Promise<void> {
 }
 
 export async function deleteGrade(id: string): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.grades = s.grades.filter((x) => x.id !== id)
+    return
+  }
   const { error } = await supabase.from('grades').delete().eq('id', id)
   if (error) throw error
 }
 
 export async function fetchSettings(): Promise<Settings> {
+  if (isDemo()) return { ...demoStore().settings }
   const { data, error } = await supabase.from('user_settings').select('*').maybeSingle()
   if (error) throw error
   if (!data) return DEFAULT_SETTINGS
@@ -426,6 +559,10 @@ export async function fetchSettings(): Promise<Settings> {
 }
 
 export async function saveSettingsCloud(s: Settings): Promise<void> {
+  if (isDemo()) {
+    demoStore().settings = s
+    return
+  }
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id
   if (!userId) throw new Error('ログインしていません')
