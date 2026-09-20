@@ -293,6 +293,7 @@ export default function TimetableTab(props: {
         onColorChange={(c) =>
           setCourseColors((m) => ({ ...m, [selectedCourse]: c }))
         }
+        moodleUrl={settings.moodleToken ? settings.moodleUrl : undefined}
       />
     )
   }
@@ -431,7 +432,8 @@ export default function TimetableTab(props: {
       {(
         <div
           className="mt-3 grid gap-1"
-          style={{ gridTemplateColumns: `1.2rem repeat(${dayDefs.length}, 1fr)` }}
+          // 左端の列は時限の時刻(08:50 など)が読める幅をとる
+          style={{ gridTemplateColumns: `1.9rem repeat(${dayDefs.length}, minmax(0, 1fr))` }}
         >
           <div />
           {dayDefs.map((d) => {
@@ -454,7 +456,7 @@ export default function TimetableTab(props: {
               <div className="flex flex-col items-center justify-center py-1 text-center">
                 <span className="text-xs font-semibold text-gray-600">{p}</span>
                 {PERIOD_TIMES[p] && (
-                  <span className="mt-0.5 text-[7px] leading-tight text-gray-400">
+                  <span className="mt-0.5 text-[9px] leading-tight text-gray-500">
                     {PERIOD_TIMES[p][0]}
                     <br />|<br />
                     {PERIOD_TIMES[p][1]}
@@ -481,13 +483,19 @@ export default function TimetableTab(props: {
                         {pendingCourses.has(slot.course) && (
                           <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
                         )}
-                        <span className={`block flex-1 break-all text-[10px] font-medium leading-tight ${c!.text}`}>
+                        {/* 列が5つまでなら少し大きく。6列以上は折り返しが増えすぎるので据え置き */}
+                        <span
+                          className={`block flex-1 break-all font-medium leading-tight ${c!.text} ${
+                            dayDefs.length <= 5 ? 'text-[11px]' : 'text-[10px]'
+                          }`}
+                        >
                           {slot.course.length > 16 ? slot.course.slice(0, 16) + '…' : slot.course}
                         </span>
                         <span
-                          className={`mt-0.5 self-start rounded bg-white/70 px-1 py-px text-[8px] ${
-                            slot.room ? 'text-gray-600' : 'text-gray-400'
-                          }`}
+                          // 教室名は省略しない(切れると肝心の番号が読めない)。入りきらなければ折り返す
+                          className={`mt-0.5 max-w-full self-start break-all rounded bg-white/80 px-0.5 py-px leading-tight ${
+                            dayDefs.length <= 5 ? 'text-[10px]' : 'text-[9px]'
+                          } ${slot.room ? 'font-medium text-gray-700' : 'text-gray-500'}`}
                         >
                           {slot.room || '未登録'}
                         </span>

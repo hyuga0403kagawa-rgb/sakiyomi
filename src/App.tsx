@@ -14,7 +14,10 @@ import {
   Crown,
   ExternalLink,
   FileText,
+  Globe,
+  GraduationCap,
   Home as HomeIcon,
+  Link2,
   ListTodo,
   Mail,
   RefreshCw,
@@ -53,6 +56,74 @@ type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 // 香川大学生向けのポータルリンク
 const ICOMPASS_URL = 'https://attendsyst.kagawa-u.ac.jp/mobile/g/'
 const KADASAPO_URL = 'https://kyoumusyst.kagawa-u.ac.jp/campusweb/top.do'
+// 知プラe(大学連携Moodle)。URLに年度が入っているので、年1回(4月)に更新する
+const CHIPLA_URL = 'https://lms-sp.itc.kagawa-u.ac.jp/moodle2026/'
+
+/** 今日タブに並べる、大学のシステムへのリンク1つ分 */
+function UnivLink(props: { href: string; icon: React.ReactNode; label: string; sub: string }) {
+  return (
+    <a
+      href={props.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg border border-gray-200 bg-white px-1 py-2.5 text-center"
+    >
+      <span className="text-primary">{props.icon}</span>
+      <span className="text-sm font-semibold text-gray-800">{props.label}</span>
+      <span className="text-[11px] text-gray-500">{props.sub}</span>
+    </a>
+  )
+}
+
+/**
+ * 自動同期の不調を知らせる帯。課題のモレは「同期が止まっているのに気づかない」ときに
+ * 起きるので、24時間待たずに、失敗した時点・3時間止まった時点で出す。
+ */
+function SyncHealthBanner(props: { settings: Settings }) {
+  const { settings } = props
+  if (isDemo() || (!settings.moodleToken && !settings.calendarUrlHost)) return null
+
+  // カレンダーURL方式(知プラe など)だけが失敗している場合
+  if (settings.lastSyncError?.startsWith('ical:')) {
+    return (
+      <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="font-semibold">カレンダーURLでの取り込みに失敗しています</p>
+        <p className="mt-0.5 text-xs">
+          URLが無効になったか、年度が切り替わった可能性があります。マイページの「知プラe・他のMoodleを追加」で
+          URLを貼り直してください。それまでは、そのMoodleの締め切りを直接確認してください。
+        </p>
+      </div>
+    )
+  }
+
+  if (settings.lastSyncError) {
+    const expired = /invalidtoken|accessexception|invalidlogin/i.test(settings.lastSyncError)
+    return (
+      <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="font-semibold">Moodleとの自動同期に失敗しています</p>
+        <p className="mt-0.5 text-xs">
+          {expired
+            ? '連携の有効期限が切れた可能性があります。マイページからMoodleと連携し直してください。'
+            : 'Moodle側の一時的な不調かもしれません。しばらくしても直らなければ、マイページから連携し直してください。'}
+          表示中の課題は最新でない可能性があるので、Moodleも直接確認してください。
+        </p>
+      </div>
+    )
+  }
+
+  const last = settings.lastSyncedAt ? new Date(settings.lastSyncedAt).getTime() : 0
+  if (last && Date.now() - last > 3 * 3600_000) {
+    return (
+      <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <p className="font-semibold">自動同期が3時間以上止まっています</p>
+        <p className="mt-0.5 text-xs">
+          表示中の課題は最新でない可能性があります。「すべて」タブの同期ボタンを押すか、Moodleを直接確認してください。
+        </p>
+      </div>
+    )
+  }
+  return null
+}
 
 /** 香川大生かどうか。moodleUrl はデフォルト値が香川大なので、香川Moodleに
  *  連携済み、またはプロフィールの大学が香川、で判定する */
@@ -305,6 +376,13 @@ function Home() {
     }
   }
 
+  /** 課題と設定をクラウドから取り直す(サーバー側で変更があったとき用。Moodleへの同期はしない) */
+  const reloadFromCloud = async () => {
+    const [fresh, freshSettings] = await Promise.all([repo.fetchTasks(), repo.fetchSettings()])
+    setTasks(fresh)
+    setSettings(freshSettings)
+  }
+
   const handleConnect = async (moodleUrl: string, username: string, password: string) => {
     await connectMoodle(moodleUrl, username, password)
     setOnboardStep(null) // 初回案内の途中なら通常画面へ抜ける
@@ -412,13 +490,7 @@ function Home() {
         </div>
       )}
 
-      {settings.moodleToken &&
-        settings.lastSyncedAt &&
-        Date.now() - new Date(settings.lastSyncedAt).getTime() > 24 * 3600_000 && (
-          <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            同期が24時間以上成功していません。設定画面からMoodleとの連携をやり直してください。
-          </div>
-        )}
+      <SyncHealthBanner settings={settings} />
 
       {tab === 'today' && (
         <main className="px-4 py-4">
@@ -440,20 +512,40 @@ function Home() {
             </p>
           </div>
 
-          {isKagawaStudent(settings) && (
-            <a
-              href={ICOMPASS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3"
-            >
-              <Smartphone className="h-5 w-5 text-gray-400" />
-              <span className="flex-1">
-                <span className="block text-sm font-medium text-gray-800">iCompass</span>
-                <span className="block text-xs text-gray-400">出席の登録・確認(香川大学)</span>
-              </span>
-              <ExternalLink className="h-4 w-4 text-gray-300" />
-            </a>
+          {/* 大学のシステムへの入口を1か所に集める(Moodle / 学務 / 出席) */}
+          {(settings.moodleToken || isKagawaStudent(settings)) && (
+            <div className="mt-3 flex gap-2">
+              {settings.moodleToken && (
+                <UnivLink
+                  href={settings.moodleUrl}
+                  icon={<GraduationCap className="h-5 w-5" />}
+                  label="Moodle"
+                  sub="課題・資料"
+                />
+              )}
+              {isKagawaStudent(settings) && (
+                <>
+                  <UnivLink
+                    href={CHIPLA_URL}
+                    icon={<Globe className="h-5 w-5" />}
+                    label="知プラe"
+                    sub="連携講義"
+                  />
+                  <UnivLink
+                    href={KADASAPO_URL}
+                    icon={<ClipboardList className="h-5 w-5" />}
+                    label="カダサポ"
+                    sub="履修・成績"
+                  />
+                  <UnivLink
+                    href={ICOMPASS_URL}
+                    icon={<Smartphone className="h-5 w-5" />}
+                    label="iCompass"
+                    sub="出席"
+                  />
+                </>
+              )}
+            </div>
           )}
 
           {(() => {
@@ -553,6 +645,7 @@ function Home() {
           tasks={tasks}
           slots={slots}
           onToggle={toggleDone}
+          onReload={reloadFromCloud}
         />
       )}
 
@@ -1072,6 +1165,156 @@ function CollapsibleSection(props: {
 }
 
 /** カレンダー連携カード。ICS購読URLを発行してGoogle/iPhoneのカレンダーに登録してもらう */
+/**
+ * カレンダーURL方式の連携カード(知プラe など、ID・パスワードで連携できないMoodle向け)。
+ * 学生がMoodleの「カレンダーのエクスポート」で取得したURLを貼ると、サーバーが1時間ごとに
+ * それを読んで締め切りを取り込む。パスワードは扱わない。
+ */
+function CalendarUrlImportCard(props: {
+  settings: Settings
+  onFlash: (text: string) => void
+  onReload: () => Promise<void>
+}) {
+  const { settings, onFlash, onReload } = props
+  const [url, setUrl] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [showSteps, setShowSteps] = useState(false)
+  const connected = settings.calendarUrlHost
+
+  const connect = async () => {
+    if (isDemo()) {
+      onFlash('デモでは連携できません')
+      return
+    }
+    if (!url.trim()) {
+      setError('カレンダーURLを貼り付けてください')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const { connectCalendarUrl } = await import('./moodle')
+      const n = await connectCalendarUrl(url)
+      setUrl('')
+      await onReload()
+      onFlash(n > 0 ? `連携しました。締め切りを${n}件取り込みました` : '連携しました(いまは締め切りがありません)')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '連携に失敗しました')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const disconnect = async () => {
+    if (isDemo()) {
+      onFlash('デモでは解除できません')
+      return
+    }
+    if (!window.confirm('連携を解除すると、この方式で取り込んだ課題もアプリから消えます。解除しますか?')) return
+    setBusy(true)
+    try {
+      const { disconnectCalendarUrl } = await import('./moodle')
+      await disconnectCalendarUrl()
+      await onReload()
+      onFlash('連携を解除しました')
+    } catch (e) {
+      onFlash(e instanceof Error ? e.message : '解除に失敗しました')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+        <Link2 className="h-4 w-4 text-gray-400" />
+        知プラe・他のMoodleを追加
+      </h3>
+      <p className="mt-1 text-xs leading-relaxed text-gray-600">
+        知プラe(大学連携Moodle)のように、IDとパスワードでは連携できないMoodleの締め切りも取り込めます。
+        Moodleの「カレンダーURL」を貼るだけで、パスワードは使いません。
+      </p>
+
+      {connected ? (
+        <div className="mt-3 space-y-2">
+          <p className="flex items-center gap-1.5 rounded-lg bg-primary-soft px-3 py-2 text-sm font-medium text-primary-dark">
+            <Check className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 break-all">連携中: {connected}</span>
+          </p>
+          <button
+            onClick={disconnect}
+            disabled={busy}
+            className="text-xs text-gray-500 underline disabled:opacity-50"
+          >
+            {busy ? '処理中…' : '連携を解除する'}
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <button
+            onClick={() => setShowSteps((v) => !v)}
+            className="text-xs font-medium text-primary underline"
+          >
+            {showSteps ? '手順を閉じる' : 'カレンダーURLの取り方を見る'}
+          </button>
+          {showSteps && (
+            <ol className="list-decimal space-y-1 rounded-lg bg-gray-50 py-2.5 pl-7 pr-3 text-xs leading-relaxed text-gray-700">
+              <li>
+                連携したいMoodleにログインする
+                {isKagawaStudent(settings) && (
+                  <>
+                    (
+                    <a href={CHIPLA_URL} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                      知プラeを開く
+                    </a>
+                    )
+                  </>
+                )}
+              </li>
+              <li>メニューから「カレンダー」を開く</li>
+              <li>「カレンダーをエクスポートする」を押す</li>
+              <li>イベントと期間を選ぶ(どれを選んでも構いません。UniPort側で「すべて」に直して読みます)</li>
+              <li>「カレンダーURLを取得する」を押し、表示されたURLをコピーする</li>
+              <li>下の欄に貼り付けて「連携する」を押す</li>
+            </ol>
+          )}
+          <textarea
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            rows={3}
+            placeholder="https://…/calendar/export_execute.php?userid=…&authtoken=…"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <button
+            onClick={connect}
+            disabled={busy}
+            className="w-full rounded-lg border border-primary py-2 text-sm font-semibold text-primary disabled:opacity-50"
+          >
+            {busy ? '確認中…' : '連携する'}
+          </button>
+        </div>
+      )}
+
+      <ul className="mt-3 list-disc space-y-1 pl-4 text-xs leading-relaxed text-gray-500">
+        <li>
+          この方式では<b className="font-semibold text-gray-700">提出済みかどうかが分かりません</b>。
+          提出したら、自分でチェックを付けてください。
+        </li>
+        <li>知プラeはURLが年度ごとに変わります。年度が変わったら貼り直してください。</li>
+        <li>
+          貼り付けたURLはあなたのカレンダーを読むための鍵です。UniPortのサーバーに保存し、
+          1時間ごとの取り込みにだけ使います。解除するとサーバーから消えます。
+        </li>
+      </ul>
+    </div>
+  )
+}
+
 /** カレンダーに含める種類の切り替え定義 */
 const CALENDAR_KINDS = [
   { key: 'calendarTasks', label: '課題の締め切り', hint: 'レポート・提出物の期限' },
@@ -1316,8 +1559,10 @@ function SettingsTab(props: {
   tasks: Task[]
   slots: TimetableSlot[]
   onToggle: (id: string) => void
+  /** サーバー側でデータが変わったあと(カレンダーURLの連携など)に、課題と設定を取り直す */
+  onReload: () => Promise<void>
 }) {
-  const { settings, onSave, onFlash, onConnect, tasks, slots, onToggle } = props
+  const { settings, onSave, onFlash, onConnect, tasks, slots, onToggle, onReload } = props
   const [minutes, setMinutes] = useState(settings.minutesPerDay)
   const [notifyTime, setNotifyTime] = useState(settings.notifyTime)
   const [enabling, setEnabling] = useState(false)
@@ -1439,6 +1684,8 @@ function SettingsTab(props: {
       </button>
 
       {!isDemo() && <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />}
+
+      <CalendarUrlImportCard settings={settings} onFlash={onFlash} onReload={onReload} />
 
       <CalendarFeedCard settings={settings} onSaveSettings={onSave} onFlash={onFlash} />
 
