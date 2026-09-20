@@ -1,4 +1,4 @@
-﻿project_id = "kdyffkcowdkbgtbledbc"
+project_id = "kdyffkcowdkbgtbledbc"
 
 [functions.moodle-sync]
 verify_jwt = false
@@ -16,4 +16,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.calendar-feed]
+verify_jwt = false
+
+[functions.survey]
 verify_jwt = false
