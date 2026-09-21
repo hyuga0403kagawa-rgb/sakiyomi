@@ -18,7 +18,6 @@ import type {
   Task,
   TimetableSlot,
 } from './types'
-import { ICAL_ID_OFFSET } from './types'
 import { defaultSemester } from './semester'
 
 const KEY = 'uniport-demo'
@@ -108,12 +107,6 @@ function seed(): DemoStore {
         done: false,
         source: 'moodle',
         moodleEventId: 90001,
-        moodleModule: 'quiz',
-        moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp/',
-        description:
-          `第5回の範囲(二分探索木・ヒープ)から10問。
-制限時間は20分、受験は1回のみです。
-開始すると途中で中断できません。時間に余裕のあるときに受験してください。`,
         createdAt: at(-5, 9, 0),
       },
       {
@@ -125,15 +118,6 @@ function seed(): DemoStore {
         done: false,
         source: 'moodle',
         moodleEventId: 90002,
-        moodleModule: 'assign',
-        moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp/',
-        description:
-          `RC回路の過渡応答を測定し、レポートにまとめてください。
-
-【分量】A4で3〜5ページ
-【形式】PDF(ファイル名は「学籍番号_レポート3.pdf」)
-【提出方法】このページの「提出物をアップロード」から提出
-【注意】測定データの表と、時定数の理論値との比較を必ず含めること。期限後の提出は受け付けません。`,
         createdAt: at(-7, 9, 0),
       },
       {
@@ -155,14 +139,6 @@ function seed(): DemoStore {
         done: false,
         source: 'moodle',
         moodleEventId: 90003,
-        moodleModule: 'assign',
-        moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp/',
-        description:
-          `教科書 p.84 の演習問題 3, 4, 7 を解いてください。
-
-【形式】手書きをスキャンしたPDF、またはLaTeXで作成したPDF
-【提出方法】ファイルを1つにまとめてアップロード
-途中の式変形も省略せずに書くこと。`,
         createdAt: at(-3, 9, 0),
       },
       {
@@ -174,14 +150,6 @@ function seed(): DemoStore {
         done: false,
         source: 'moodle',
         moodleEventId: 90004,
-        moodleModule: 'assign',
-        moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp/',
-        description:
-          `二分探索と線形探索をC言語で実装し、要素数を変えて実行時間を比較してください。
-
-【提出物】ソースコード(.c)と、結果をまとめた考察(PDF・1ページ程度)
-【提出方法】2つのファイルをzipにまとめてアップロード
-コンパイルが通らないものは採点対象外です。`,
         createdAt: at(-1, 9, 0),
       },
       {
@@ -193,13 +161,6 @@ function seed(): DemoStore {
         done: false,
         source: 'moodle',
         moodleEventId: 90005,
-        moodleModule: 'assign',
-        moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp/',
-        description:
-          `第6回の講義をふまえて、ふりかえりシートを記入してください。
-
-【分量】400字程度
-【提出方法】オンラインテキスト(このページの入力欄に直接記入)`,
         createdAt: at(-1, 9, 0),
       },
       {
@@ -211,13 +172,6 @@ function seed(): DemoStore {
         done: false,
         source: 'moodle',
         moodleEventId: 90006,
-        moodleModule: 'assign',
-        moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp/',
-        description:
-          `第3回の内容について、指定のワークシートを完成させて提出してください。
-
-【形式】Wordファイル(.docx)
-【提出方法】ファイルをアップロード`,
         createdAt: at(-8, 9, 0),
       },
       {
@@ -229,11 +183,6 @@ function seed(): DemoStore {
         done: true,
         source: 'moodle',
         moodleEventId: 90007,
-        moodleModule: 'assign',
-        moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp/',
-        description:
-          `直流回路の解析についてのレポート。
-【分量】A4で2〜3ページ 【形式】PDF`,
         createdAt: at(-14, 9, 0),
       },
       {
@@ -245,11 +194,6 @@ function seed(): DemoStore {
         done: true,
         source: 'moodle',
         moodleEventId: 90008,
-        moodleModule: 'assign',
-        moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp/',
-        description:
-          `行列の基本変形の演習問題。
-【形式】PDF`,
         createdAt: at(-16, 9, 0),
       },
     ],
@@ -355,38 +299,11 @@ function seed(): DemoStore {
   }
 }
 
-/** カレンダーURL方式(知プラe)で取り込んだ想定の課題。提出済みかは分からないので自分でチェックする */
-function chiplaTask(): Task {
-  return {
-    id: 'd-t10',
-    title: '第2回レポート',
-    course: '四国の歴史と文化(知プラe)',
-    due: at(4, 23, 59),
-    estimatedMinutes: 60,
-    done: false,
-    source: 'moodle',
-    moodleEventId: ICAL_ID_OFFSET + 5012,
-    moodleModule: 'assign',
-    moodleUrl: 'https://lms-sp.itc.kagawa-u.ac.jp/moodle2026/',
-    description: `第2回の講義動画を視聴したうえで、レポートを提出してください。
-
-【分量】800字程度
-【形式】Word または PDF
-【提出方法】ファイルをアップロード`,
-    viaCalendarUrl: true,
-    createdAt: at(-2, 9, 0),
-  }
-}
-
 let store: DemoStore | null = null
 
 /** デモ用のデータ置き場(このタブのメモリ上だけ。再読み込みで初期状態に戻る) */
 export function demoStore(): DemoStore {
-  if (!store) {
-    store = seed()
-    store.tasks.push(chiplaTask())
-    store.settings.calendarUrlHost = 'lms-sp.itc.kagawa-u.ac.jp'
-  }
+  if (!store) store = seed()
   return store
 }
 

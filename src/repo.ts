@@ -13,7 +13,7 @@ import type {
   TaskSource,
   TimetableSlot,
 } from './types'
-import { DEFAULT_SETTINGS, ICAL_ID_OFFSET } from './types'
+import { DEFAULT_SETTINGS } from './types'
 import { demoId, demoStore, isDemo } from './demo'
 
 // Supabaseとのやり取りをここに集約する(App側はTask/Settings型だけを扱う)
@@ -29,11 +29,6 @@ interface TaskRow {
   source: TaskSource
   moodle_event_id: number | null
   created_at: string
-  // 以下は同期(moodle-sync)だけが書く列。アプリからは読むだけで、toRow には入れない
-  // (アプリ側の更新でこれらを上書きしたり、列が無い環境で更新が失敗したりしないように)
-  moodle_url?: string | null
-  description?: string | null
-  moodle_module?: string | null
 }
 
 function toTask(r: TaskRow): Task {
@@ -46,21 +41,7 @@ function toTask(r: TaskRow): Task {
     done: r.done,
     source: r.source,
     moodleEventId: r.moodle_event_id ?? undefined,
-    moodleUrl: r.moodle_url ?? undefined,
-    description: r.description ?? undefined,
-    moodleModule: r.moodle_module ?? undefined,
-    viaCalendarUrl: (r.moodle_event_id ?? 0) >= ICAL_ID_OFFSET ? true : undefined,
     createdAt: r.created_at,
-  }
-}
-
-/** 保存済みのカレンダーURLから、画面に出すためのホスト名だけを取り出す(鍵の入ったURL全体は画面に渡さない) */
-function hostOf(url: string | null | undefined): string | undefined {
-  if (!url) return undefined
-  try {
-    return new URL(url).hostname
-  } catch {
-    return undefined
   }
 }
 
@@ -561,8 +542,6 @@ export async function fetchSettings(): Promise<Settings> {
     minutesPerDay: data.minutes_per_day,
     notifyTime: data.notify_time ?? '18:00',
     lastSyncedAt: data.last_synced_at ?? undefined,
-    lastSyncError: data.last_sync_error ?? undefined,
-    calendarUrlHost: hostOf(data.ical_import_url),
     nickname: data.nickname ?? undefined,
     university: data.university ?? undefined,
     faculty: data.faculty ?? undefined,

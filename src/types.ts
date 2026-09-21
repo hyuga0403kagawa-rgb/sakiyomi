@@ -12,22 +12,8 @@ export interface Task {
   source: TaskSource
   /** Moodle由来のタスクはイベントIDで同期時に照合する */
   moodleEventId?: number
-  /** Moodle上の提出ページ(課題・小テストそのもの)へのURL。同期時に取得 */
-  moodleUrl?: string
-  /** Moodleに書かれている課題の説明文(HTMLを除いたテキスト)。同期時に取得 */
-  description?: string
-  /** Moodleの種別。'assign'=課題, 'quiz'=小テスト など */
-  moodleModule?: string
-  /**
-   * カレンダーURL方式(知プラe など)で取り込んだ課題か。
-   * この方式では提出済みかどうかが分からないので、完了は利用者が自分で付ける。
-   */
-  viaCalendarUrl?: boolean
   createdAt: string
 }
-
-/** カレンダーURL方式の課題は moodle_event_id にこの値を足して保存している(moodle-sync/ical.ts と同じ値) */
-export const ICAL_ID_OFFSET = 1_000_000_000
 
 export interface Settings {
   moodleUrl: string
@@ -37,10 +23,6 @@ export interface Settings {
   /** プッシュ通知を送る時刻 (HH:MM) */
   notifyTime: string
   lastSyncedAt?: string
-  /** 直近の自動同期が失敗していれば、その理由(Moodleのエラーコード等)。成功すると消える */
-  lastSyncError?: string
-  /** カレンダーURL方式で連携しているサイト(例: lms-sp.itc.kagawa-u.ac.jp)。未連携なら undefined */
-  calendarUrlHost?: string
   /** プロフィール */
   nickname?: string
   university?: string

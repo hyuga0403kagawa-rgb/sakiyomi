@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import type { AttendanceRecord, AttendanceStatus, CourseInfo, Task } from './types'
 import * as repo from './repo'
-import { isDemo } from './demo'
 import { fetchCourseFiles, fetchCourses, fileKind, fmtFileSize, type MaterialFile } from './materials'
 import { COURSE_COLOR_CLASS, COURSE_COLOR_KEYS, DEFAULT_COURSE_COLOR } from './courseColors'
 import TaskRow from './TaskRow'
@@ -76,12 +75,8 @@ export default function CourseDetail(props: {
   onFlash: (text: string) => void
   color?: string
   onColorChange?: (color: string) => void
-  /** 連携しているMoodleのURL。講義ページへの直接リンクを作るのに使う */
-  moodleUrl?: string
 }) {
-  const { course, tasks, onToggle, onBack, onFlash, color, onColorChange, moodleUrl } = props
-  // Moodle上でのこの講義のID(名前が一致したときだけ入る)
-  const [moodleCourseId, setMoodleCourseId] = useState<number | null>(null)
+  const { course, tasks, onToggle, onBack, onFlash, color, onColorChange } = props
   const [info, setInfo] = useState<CourseInfo | null>(null)
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [files, setFiles] = useState<MaterialFile[] | null>(null)
@@ -110,7 +105,6 @@ export default function CourseDetail(props: {
           setFilesError('Moodle上の講義と名前が一致しませんでした')
           return
         }
-        setMoodleCourseId(matched.id)
         setFiles(await fetchCourseFiles(matched.id))
       } catch (e) {
         setFiles([])
@@ -244,23 +238,6 @@ export default function CourseDetail(props: {
         ← 時間割に戻る
       </button>
       <h2 className="mt-2 text-lg font-semibold text-gray-800">{course}</h2>
-
-      {/* Moodleの講義ページへ直接飛ぶ(Moodle側で講義を探す手間を省く) */}
-      {moodleUrl && moodleCourseId !== null && (
-        <a
-          href={
-            isDemo()
-              ? moodleUrl
-              : `${moodleUrl.replace(/\/$/, '')}/course/view.php?id=${moodleCourseId}`
-          }
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary py-2.5 text-sm font-semibold text-primary"
-        >
-          Moodleでこの講義のページを開く
-          <ExternalLink className="h-4 w-4" />
-        </a>
-      )}
 
       {/* 講義の色 */}
       <div className="mt-3 flex items-center gap-2">

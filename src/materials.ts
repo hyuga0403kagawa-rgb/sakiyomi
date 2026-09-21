@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { demoStore, isDemo } from './demo'
 
 export interface Course {
   id: number
@@ -29,25 +28,11 @@ async function invokeMaterials(body: Record<string, unknown>) {
 }
 
 export async function fetchCourses(): Promise<Course[]> {
-  if (isDemo()) {
-    // デモでは時間割に入っている講義をそのままMoodle上の講義として扱う
-    const names = [...new Set(demoStore().slots.map((s) => s.course))]
-    return names.map((name, i) => ({ id: 1000 + i, name, enddate: 0, visible: 1 }))
-  }
   const data = await invokeMaterials({})
   return (data.courses ?? []) as Course[]
 }
 
 export async function fetchCourseFiles(courseId: number): Promise<MaterialFile[]> {
-  if (isDemo()) {
-    const base = demoStore().settings.moodleUrl
-    const now = Math.floor(Date.now() / 1000)
-    return [
-      { section: '第1回', module: '講義スライド', modname: 'resource', filename: '第1回_ガイダンス.pdf', url: base, mimetype: 'application/pdf', filesize: 1_240_000, timemodified: now },
-      { section: '第2回', module: '講義スライド', modname: 'resource', filename: '第2回_講義資料.pdf', url: base, mimetype: 'application/pdf', filesize: 2_080_000, timemodified: now },
-      { section: '第2回', module: '演習問題', modname: 'resource', filename: '演習問題.docx', url: base, mimetype: 'application/msword', filesize: 86_000, timemodified: now },
-    ]
-  }
   const data = await invokeMaterials({ courseId })
   return (data.files ?? []) as MaterialFile[]
 }

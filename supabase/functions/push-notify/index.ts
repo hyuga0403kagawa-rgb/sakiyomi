@@ -133,24 +133,6 @@ Deno.serve(async (req) => {
       .eq('user_id', s.user_id)
     if (!subs || subs.length === 0) continue
 
-    // --- 0. 同期エラーの通知 ---
-    // Moodleとの同期が2回(=約2時間)続けて失敗したら、1度だけ知らせる。
-    // 同期が止まったまま気づかないのが、課題を見落とすいちばんの原因になるため。
-    // 1回だけの失敗はMoodle側の一時的な不調のことが多いので通知しない。
-    // 同期が成功すると moodle-sync 側で記録が消え、次に失敗が続いたときにまた通知される。
-    let syncErrorNotified = 0
-    if (s.last_sync_error && Number(s.sync_error_count ?? 0) >= 2 && !s.sync_error_notified) {
-      syncErrorNotified = await sendToSubs(admin, subs, {
-        title: '⚠️ Moodleとの同期が止まっています',
-        body: '課題が最新でない可能性があります。アプリを開いて確認してください。',
-        url: './',
-      })
-      await admin
-        .from('user_settings')
-        .update({ sync_error_notified: true })
-        .eq('user_id', s.user_id)
-    }
-
     const { data: taskRows } = await admin
       .from('tasks')
       .select('title, due, done, source, created_at')
@@ -218,7 +200,6 @@ Deno.serve(async (req) => {
 
     results.push({
       userId: s.user_id,
-      syncErrorNotified,
       reminded,
       reminderLines: lines.length,
       jobReminded,
