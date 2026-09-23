@@ -5,7 +5,7 @@ import TaskRow from './TaskRow'
 import { WEEKDAY_JA, dayKey } from './format'
 
 /** 締切を月表示で確認するカレンダー(「すべて」タブの📅から開くサブ画面)。
- *  将来的にはGoogle/Apple/Outlookカレンダー連携(プレミアム)をここに載せる予定 */
+ *  Google/iPhoneのカレンダーへの連携は、マイページの「カレンダー連携」で無料提供済み */
 export default function CalendarTab(props: {
   tasks: Task[]
   onToggle: (id: string) => void

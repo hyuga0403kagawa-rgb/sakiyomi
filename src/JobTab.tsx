@@ -144,8 +144,12 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
     [companies, profile],
   )
   const sponsored = useMemo(() => companies.filter((c) => c.isSponsored), [companies])
+  // インターン・説明会は協賛企業(PR表記つき)を先に並べる。これも有料の優先表示
   const events = useMemo(
-    () => companies.filter((c) => c.internInfo || c.seminarInfo),
+    () =>
+      companies
+        .filter((c) => c.internInfo || c.seminarInfo)
+        .sort((a, b) => Number(b.isSponsored) - Number(a.isSponsored)),
     [companies],
   )
 
@@ -317,6 +321,24 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
         )}
       </div>
 
+      {/* PR枠(有料の協賛企業)。優先表示として、学生本人のスケジュールの直後・企業関連の先頭に置く。
+          おすすめ枠(中立)には絶対に混ぜない。ここが「前に出る」分の対価 */}
+      {sponsored.length > 0 && (
+        <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-gray-800">
+            協賛企業
+            <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+              PR
+            </span>
+          </h3>
+          <ul className="mt-2 space-y-2">
+            {sponsored.map((c) => (
+              <CompanyCard key={c.id} company={c} pr />
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* 2. AI就活サポート */}
       <button
         onClick={() => setView('chat')}
@@ -380,23 +402,6 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
         )}
       </div>
 
-      {/* PR枠(有料掲載。おすすめとは明確に分離) */}
-      {sponsored.length > 0 && (
-        <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
-          <h3 className="text-sm font-semibold text-gray-800">
-            協賛企業
-            <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
-              PR
-            </span>
-          </h3>
-          <ul className="mt-2 space-y-2">
-            {sponsored.map((c) => (
-              <CompanyCard key={c.id} company={c} pr />
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* 5. 掲載企業のインターン・説明会(運営が登録するイベント枠) */}
       <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
         <h3 className="text-sm font-semibold text-gray-800">掲載企業のインターン・説明会</h3>
@@ -455,12 +460,13 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
             準備中
           </span>
         </h3>
+        {/* 既に無料で提供している機能はここに載せない(後出しの有料化に見えるため)。
+            カレンダー連携はマイページで無料提供中。ウィジェットはネイティブ版でのみ動く */}
         <ul className="mt-1 space-y-0.5 text-xs text-gray-500">
-          <li>・ホーム画面ウィジェット</li>
           <li>・AI添削 無制限</li>
           <li>・面接練習(AIロールプレイ)</li>
           <li>・企業分析レポート</li>
-          <li>・外部カレンダー連携</li>
+          <li>・ホーム画面ウィジェット(アプリ版)</li>
         </ul>
       </div>
     </main>
