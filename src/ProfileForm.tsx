@@ -59,8 +59,24 @@ export default function ProfileForm(props: {
   }
 
   const save = async () => {
+    if (!grade) {
+      onFlash('学年を選んでください')
+      return
+    }
     if (!nickname.trim()) {
       onFlash('ニックネームを入力してください')
+      return
+    }
+    if (!university.trim()) {
+      onFlash('大学名を入力してください')
+      return
+    }
+    if (!faculty.trim()) {
+      onFlash('学部を入力してください')
+      return
+    }
+    if (!department.trim()) {
+      onFlash('学科・コースを入力してください')
       return
     }
     setBusy(true)
@@ -130,6 +146,26 @@ export default function ProfileForm(props: {
         </div>
       </div>
 
+      {/* 学年は先頭・必須。就活の協賛広告を3年生以上にだけ出す判定と、
+          協賛企業に「何年生が何人いるか」を示す集計の元になる */}
+      <label className="block">
+        <span className="text-sm font-medium text-gray-700">
+          学年 <span className="text-red-500">*</span>
+        </span>
+        <select
+          value={grade}
+          onChange={(e) => setGrade(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+        >
+          <option value="">選択してください</option>
+          {GRADES.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <label className="block">
         <span className="text-sm font-medium text-gray-700">
           ニックネーム <span className="text-red-500">*</span>
@@ -143,7 +179,9 @@ export default function ProfileForm(props: {
       </label>
 
       <label className="block">
-        <span className="text-sm font-medium text-gray-700">大学名</span>
+        <span className="text-sm font-medium text-gray-700">
+          大学名 <span className="text-red-500">*</span>
+        </span>
         <input
           value={university}
           onChange={(e) => setUniversity(e.target.value)}
@@ -160,7 +198,9 @@ export default function ProfileForm(props: {
 
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">学部</span>
+          <span className="text-sm font-medium text-gray-700">
+            学部 <span className="text-red-500">*</span>
+          </span>
           <input
             value={faculty}
             onChange={(e) => setFaculty(e.target.value)}
@@ -169,7 +209,9 @@ export default function ProfileForm(props: {
           />
         </label>
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">学科・コース</span>
+          <span className="text-sm font-medium text-gray-700">
+            学科・コース <span className="text-red-500">*</span>
+          </span>
           <input
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
@@ -178,22 +220,6 @@ export default function ProfileForm(props: {
           />
         </label>
       </div>
-
-      <label className="block">
-        <span className="text-sm font-medium text-gray-700">学年</span>
-        <select
-          value={grade}
-          onChange={(e) => setGrade(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-        >
-          <option value="">選択してください</option>
-          {GRADES.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
-      </label>
 
       <button
         onClick={save}
