@@ -13,6 +13,7 @@ import type { Company, JobEntry, JobNote, JobProfile } from './types'
 import { JOB_NOTE_CATEGORIES, JOB_STATUSES } from './types'
 import * as repo from './repo'
 import { JOB_TEMPLATES } from './jobTemplates'
+import { recordSponsorEvent } from './sponsor'
 
 const ENTRY_TYPES = ['説明会', 'セミナー', 'インターン', '本選考', 'ES提出', '面接', 'OB/OG訪問', 'その他']
 
@@ -476,9 +477,21 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
 function CompanyCard(props: { company: Company; pr?: boolean }) {
   const { company: c, pr } = props
   const [open, setOpen] = useState(false)
+
+  // 協賛枠(PR)に出したときだけ、表示とタップを数える(企業ごとの合計のみ。sponsor.ts)
+  useEffect(() => {
+    if (pr) recordSponsorEvent(c.id, 'job_tab', 'impression')
+  }, [pr, c.id])
+
   return (
     <li className="rounded-lg border border-gray-100">
-      <button onClick={() => setOpen(!open)} className="w-full p-2 text-left">
+      <button
+        onClick={() => {
+          if (!open && pr) recordSponsorEvent(c.id, 'job_tab', 'tap')
+          setOpen(!open)
+        }}
+        className="w-full p-2 text-left"
+      >
         <p className="flex items-center gap-2">
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">{c.name}</span>
           {pr && (

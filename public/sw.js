@@ -28,7 +28,10 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of list) {
         if ('focus' in client) return client.focus()
       }
-      return self.clients.openWindow(event.notification.data?.url || './')
+      // 通知から開いたことをアプリに伝える(このときは協賛企業の案内を出さない)
+      const url = new URL(event.notification.data?.url || './', self.registration.scope)
+      url.searchParams.set('from', 'push')
+      return self.clients.openWindow(url.href)
     }),
   )
 })

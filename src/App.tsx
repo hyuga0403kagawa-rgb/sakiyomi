@@ -23,7 +23,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
-import type { Settings, Task, TimetableSlot } from './types'
+import type { Company, Settings, Task, TimetableSlot } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
 import { isDemo } from './demo'
@@ -43,6 +43,14 @@ import ProfileForm from './ProfileForm'
 import AvatarIcon from './AvatarIcon'
 import WidgetPreview from './WidgetPreview'
 import GradesScreen from './GradesScreen'
+import SponsorSplash from './SponsorSplash'
+import {
+  consumeFromPushFlag,
+  isUpperGrade,
+  markOpenSponsorShown,
+  openSponsorShownToday,
+  pickTodaysSponsor,
+} from './sponsor'
 import { UNIVERSITIES } from './universities'
 
 // calendar は下タブには出さないサブ画面(「すべて」の📅から開く)
@@ -163,7 +171,23 @@ function Home() {
   const [onboardStep, setOnboardStep] = useState<null | 'profile' | 'moodle'>(null)
   // 「時間割」タブを押すたびに増やし、TimetableTab の追加画面等を閉じさせる
   const [timetableReset, setTimetableReset] = useState(0)
+  // 開いた最初に出す協賛企業(出さないときは null)
+  const [sponsor, setSponsor] = useState<Company | null>(null)
   const initRan = useRef(false)
+
+  // 開いた最初の協賛企業。ルールは sponsor.ts(3年生以上・1日1回・日替わり)。
+  // 通知から開いたときは呼ばない。条件に合わなければ何も出さない
+  const maybeShowSponsor = async (s: Settings) => {
+    if (isDemo() || !isUpperGrade(s.grade) || openSponsorShownToday()) return
+    try {
+      const pick = pickTodaysSponsor(await repo.fetchCompanies())
+      if (!pick) return
+      markOpenSponsorShown()
+      setSponsor(pick)
+    } catch {
+      // 協賛の取得に失敗しても、アプリ本体の動作は止めない
+    }
+  }
 
   const flash = (text: string) => {
     setMessage(text)
@@ -197,6 +221,8 @@ function Home() {
   useEffect(() => {
     if (initRan.current) return
     initRan.current = true
+    // 通知をタップして開いたか(締切に追われている場面なので協賛は出さない)
+    const openedFromPush = consumeFromPushFlag()
     ;(async () => {
       try {
         let [cloudTasks, cloudSettings] = await Promise.all([
@@ -229,6 +255,7 @@ function Home() {
         } else {
           const last = cloudSettings.lastSyncedAt ? new Date(cloudSettings.lastSyncedAt).getTime() : 0
           if (Date.now() - last > 10 * 60 * 1000) void performSync(true)
+          if (!openedFromPush) void maybeShowSponsor(cloudSettings)
         }
       } catch (e) {
         flash(e instanceof Error ? `読み込みに失敗しました: ${e.message}` : '読み込みに失敗しました')
@@ -388,7 +415,17 @@ function Home() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-white pb-24">
+    <div className="mx-auto min-h-screen max-w-md bg-white pb-[calc(6.5rem_+_env(safe-area-inset-bottom))]">
+      {sponsor && (
+        <SponsorSplash
+          company={sponsor}
+          onClose={() => setSponsor(null)}
+          onOpenJobTab={() => {
+            setSponsor(null)
+            setTab('job')
+          }}
+        />
+      )}
       {isDemo() && (
         <div className="bg-amber-100 px-4 py-2 text-center text-xs font-medium text-amber-900">
           デモモード — 見学用のサンプルデータです。自由に触っても実際のデータには影響しません
@@ -556,7 +593,9 @@ function Home() {
         />
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md border-t border-gray-200 bg-white">
+      {/* iPhoneのホームバーと重ならないよう、下端の安全領域ぶん余白を取る
+          (viewport-fit=cover なので、取らないとタブがホームバーの上に乗って押しづらい) */}
+      <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)]">
         {(
           [
             ['today', HomeIcon, '今日'],
@@ -572,11 +611,11 @@ function Home() {
               setTab(key)
               if (key === 'timetable') setTimetableReset((n) => n + 1)
             }}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${
+            className={`flex flex-1 flex-col items-center gap-1 pt-2.5 pb-2 text-xs ${
               tab === key ? 'font-medium text-primary' : 'text-gray-400'
             }`}
           >
-            <Icon className="h-5 w-5" strokeWidth={tab === key ? 2.2 : 1.8} />
+            <Icon className="h-6 w-6" strokeWidth={tab === key ? 2.2 : 1.8} />
             {label}
           </button>
         ))}

@@ -7,6 +7,9 @@
 - `tasks` — タスク本体(RLS: 自分の行のみ)。`(user_id, moodle_event_id)` にユニーク制約
 - `user_settings` — Moodle URL・トークン・1日の使える時間・`notify_time`・`notified_date`
 - `push_subscriptions` — Web Pushの宛先(endpoint / p256dh / auth)
+- `sponsor_stats` — 協賛企業の表示回数・タップ数(企業×日×置き場所の合計のみ。誰が見たかは持たない)。
+  RLS有効・ポリシーなし=アプリから直接は読み書き不可。書き込みは関数 `record_sponsor_event` 経由のみ。
+  作成SQLと月次報告用のクエリは `sql/2026-09-23_sponsor_stats.sql`
 
 ## Edge Functions(いずれも Verify JWT: OFF)
 
