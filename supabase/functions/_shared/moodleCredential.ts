@@ -29,9 +29,10 @@ export async function saveMoodleCredential(
     .from('moodle_credentials')
     .upsert({ user_id: userId, token_enc: tokenEnc, updated_at: new Date().toISOString() })
   if (e1) throw new Error('合鍵の保存に失敗しました: ' + e1.message)
+  // moodle_token は「not null default ''」の列。空は NULL ではなく '' で表す
   const { error: e2 } = await admin
     .from('user_settings')
-    .upsert({ user_id: userId, moodle_url: moodleUrl, moodle_connected: true, moodle_token: null })
+    .upsert({ user_id: userId, moodle_url: moodleUrl, moodle_connected: true, moodle_token: '' })
   if (e2) throw new Error('連携状態の保存に失敗しました: ' + e2.message)
 }
 

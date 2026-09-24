@@ -31,6 +31,8 @@ update public.user_settings
 
 -- 3. アプリからは合鍵の列を書き換えられないようにする
 --    (サーバーの関数 = service_role と、SQL Editor = postgres は対象外)
+--    moodle_token は「not null default ''」の列なので、空は NULL ではなく '' で表す
+--    (2026-09-24 初版は NULL を入れていて、全員の設定保存が失敗した。同日修正)
 create or replace function public.user_settings_guard_moodle_token()
 returns trigger
 language plpgsql
@@ -38,7 +40,7 @@ as $$
 begin
   if current_user in ('anon', 'authenticated') then
     if tg_op = 'INSERT' then
-      new.moodle_token := null;
+      new.moodle_token := '';
     else
       new.moodle_token := old.moodle_token;
     end if;
