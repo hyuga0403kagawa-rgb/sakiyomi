@@ -3,6 +3,7 @@
 // - アプリ(ユーザーのJWT)で呼ばれるとそのユーザーだけ同期
 // デプロイ先: Supabase Edge Functions (関数名: moodle-sync, Verify JWT: OFF)
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { loadMoodleCredential } from '../_shared/moodleCredential.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -23,20 +24,26 @@ function cleanTitle(name: string) {
 
 // deno-lint-ignore no-explicit-any
 async function syncUser(admin: any, userId: string) {
-  const { data: s } = await admin.from('user_settings').select('*').eq('user_id', userId).maybeSingle()
-  if (!s || !s.moodle_token) return { userId, skipped: 'no token' }
+  // 合鍵は暗号化して保存している。平文が残っていれば、ここで暗号化して移す(_shared/moodleCredential.ts)
+  let cred
+  try {
+    cred = await loadMoodleCredential(admin, userId)
+  } catch (e) {
+    return { userId, error: 'credential: ' + (e instanceof Error ? e.message : 'unknown') }
+  }
+  if (!cred) return { userId, skipped: 'no token' }
 
   const LOOKBACK_DAYS = 14
   const LIMIT = 50
   const timesortfromSec = Math.floor(Date.now() / 1000) - LOOKBACK_DAYS * 86400
   const params = new URLSearchParams({
-    wstoken: s.moodle_token,
+    wstoken: cred.token,
     wsfunction: 'core_calendar_get_action_events_by_timesort',
     moodlewsrestformat: 'json',
     timesortfrom: String(timesortfromSec),
     limitnum: String(LIMIT),
   })
-  const res = await fetch(s.moodle_url + '/webservice/rest/server.php?' + params.toString())
+  const res = await fetch(cred.moodleUrl + '/webservice/rest/server.php?' + params.toString())
   if (!res.ok) return { userId, error: 'moodle http ' + res.status }
   const data = await res.json()
   if (data.errorcode || data.exception) return { userId, error: data.errorcode ?? 'moodle error' }
@@ -103,7 +110,8 @@ Deno.serve(async (req) => {
   const secret = req.headers.get('x-sync-secret')
   if (secret) {
     if (secret !== Deno.env.get('SYNC_SECRET')) return json({ error: 'bad secret' }, 401)
-    const { data } = await admin.from('user_settings').select('user_id').neq('moodle_token', '')
+    // 連携済みの人だけ(移行前の平文の人も、SQLで moodle_connected=true にしてある)
+    const { data } = await admin.from('user_settings').select('user_id').eq('moodle_connected', true)
     const results = []
     for (const row of data ?? []) results.push(await syncUser(admin, row.user_id))
     // 同期のあとに通知チェックも走らせる(専用cronを増やさずに毎時通知を回すため)

@@ -84,7 +84,7 @@ function seed(): DemoStore {
     settings: {
       moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp',
       // 連携済みの見た目にするためのダミー。実際の通信には使わない
-      moodleToken: 'demo',
+      moodleConnected: true,
       minutesPerDay: 120,
       notifyTime: '18:00',
       lastSyncedAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),

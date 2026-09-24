@@ -531,14 +531,19 @@ export async function deleteGrade(id: string): Promise<void> {
   if (error) throw error
 }
 
+/** アプリが読む user_settings の列。合鍵の列(moodle_token)は含めない */
+// 1本の文字列のまま書く(つなげると supabase-js が列の型を読み取れなくなる)
+const SETTINGS_COLUMNS = 'moodle_url, moodle_connected, minutes_per_day, notify_time, last_synced_at, nickname, university, faculty, department, grade, avatar, avatar_url, timetable_days, current_semester, calendar_tasks, calendar_exams, calendar_timetable, calendar_jobs'
+
 export async function fetchSettings(): Promise<Settings> {
   if (isDemo()) return { ...demoStore().settings }
-  const { data, error } = await supabase.from('user_settings').select('*').maybeSingle()
+  // 合鍵(moodle_token)は読まない。連携済みかどうか(moodle_connected)だけを受け取る
+  const { data, error } = await supabase.from('user_settings').select(SETTINGS_COLUMNS).maybeSingle()
   if (error) throw error
   if (!data) return DEFAULT_SETTINGS
   return {
     moodleUrl: data.moodle_url,
-    moodleToken: data.moodle_token,
+    moodleConnected: data.moodle_connected ?? false,
     minutesPerDay: data.minutes_per_day,
     notifyTime: data.notify_time ?? '18:00',
     lastSyncedAt: data.last_synced_at ?? undefined,
@@ -569,7 +574,7 @@ export async function saveSettingsCloud(s: Settings): Promise<void> {
   const { error } = await supabase.from('user_settings').upsert({
     user_id: userId,
     moodle_url: s.moodleUrl,
-    moodle_token: s.moodleToken,
+    // 合鍵(moodle_token)と連携状態(moodle_connected)は送らない。書くのはサーバーの moodle-connect だけ
     minutes_per_day: s.minutesPerDay,
     notify_time: s.notifyTime,
     last_synced_at: s.lastSyncedAt ?? null,

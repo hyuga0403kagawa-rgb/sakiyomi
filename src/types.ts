@@ -17,7 +17,8 @@ export interface Task {
 
 export interface Settings {
   moodleUrl: string
-  moodleToken: string
+  /** Moodleと連携済みか。合鍵(トークン)そのものはサーバーだけが暗号化して持ち、アプリには渡さない */
+  moodleConnected?: boolean
   /** 1日に課題へ使える時間(分) */
   minutesPerDay: number
   /** プッシュ通知を送る時刻 (HH:MM) */
@@ -48,7 +49,7 @@ export type TimetableDays = 'weekday' | 'sat' | 'satsun'
 
 export const DEFAULT_SETTINGS: Settings = {
   moodleUrl: 'https://kadai-moodle.kagawa-u.ac.jp',
-  moodleToken: '',
+  moodleConnected: false,
   minutesPerDay: 120,
   notifyTime: '18:00',
   timetableDays: 'sat',

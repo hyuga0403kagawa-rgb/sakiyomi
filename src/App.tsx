@@ -28,8 +28,12 @@ import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
 import { isDemo } from './demo'
 import * as repo from './repo'
-import { loadSettings as loadLocalSettings, loadTasks as loadLocalTasks } from './storage'
-import { connectMoodle, syncMoodleViaServer } from './moodle'
+import {
+  forgetLegacyMoodleToken,
+  loadSettings as loadLocalSettings,
+  loadTasks as loadLocalTasks,
+} from './storage'
+import { connectMoodle, registerMoodleToken, syncMoodleViaServer } from './moodle'
 import { buildTodayPlan } from './planner'
 import { buildRecommendation } from './recommend'
 import { defaultSemester } from './semester'
@@ -67,7 +71,7 @@ const KADASAPO_URL = 'https://kyoumusyst.kagawa-u.ac.jp/campusweb/top.do'
  *  連携済み、またはプロフィールの大学が香川、で判定する */
 function isKagawaStudent(s: Settings): boolean {
   return Boolean(
-    (s.moodleToken && s.moodleUrl?.includes('kagawa-u.ac.jp')) || s.university?.includes('香川'),
+    (s.moodleConnected && s.moodleUrl?.includes('kagawa-u.ac.jp')) || s.university?.includes('香川'),
   )
 }
 
@@ -237,12 +241,18 @@ function Home() {
             cloudTasks = await repo.fetchTasks()
             flash(`この端末のデータ ${localTasks.length}件をクラウドへ移行しました`)
           }
+          // 旧版が端末に保存していた合鍵は、サーバー経由で暗号化して登録する(アプリ側には持たない)
           const localSettings = loadLocalSettings()
-          if (localSettings.moodleToken && !cloudSettings.moodleToken) {
-            cloudSettings = { ...cloudSettings, ...localSettings }
-            await repo.saveSettingsCloud(cloudSettings)
+          if (localSettings.moodleToken && !cloudSettings.moodleConnected) {
+            try {
+              await registerMoodleToken(localSettings.moodleUrl, localSettings.moodleToken)
+              cloudSettings = await repo.fetchSettings()
+            } catch {
+              // 使えない古い合鍵なら、連携の案内からやり直してもらう
+            }
           }
         }
+        forgetLegacyMoodleToken()
         setTasks(cloudTasks)
         setSettings(cloudSettings)
         repo.fetchTimetable().then(setSlots).catch(() => {})
@@ -251,7 +261,7 @@ function Home() {
         // 連携案内から順に出す。両方済みなら通常どおり自動同期する。
         if (!cloudSettings.nickname) {
           setOnboardStep('profile')
-        } else if (!cloudSettings.moodleToken) {
+        } else if (!cloudSettings.moodleConnected) {
           setOnboardStep('moodle')
         } else {
           const last = cloudSettings.lastSyncedAt ? new Date(cloudSettings.lastSyncedAt).getTime() : 0
@@ -356,12 +366,22 @@ function Home() {
     }
   }
 
-  const handleConnect = async (moodleUrl: string, username: string, password: string) => {
-    await connectMoodle(moodleUrl, username, password)
+  const afterMoodleConnected = async () => {
     setOnboardStep(null) // 初回案内の途中なら通常画面へ抜ける
     flash('連携しました。課題を取得しています…')
-    await performSync()
+    await performSync() // 同期のあと設定を取り直すので、「連携済み」もここで反映される
     setTab('today')
+  }
+
+  const handleConnect = async (moodleUrl: string, username: string, password: string) => {
+    await connectMoodle(moodleUrl, username, password)
+    await afterMoodleConnected()
+  }
+
+  // 上級者向けのトークン直接登録も、サーバーで確かめて暗号化してから保存する
+  const handleRegisterToken = async (moodleUrl: string, token: string) => {
+    await registerMoodleToken(moodleUrl, token)
+    await afterMoodleConnected()
   }
 
   const today = new Date()
@@ -390,7 +410,7 @@ function Home() {
             submitLabel="次へ進む"
             onSave={async (s) => {
               await saveSettingsAll(s)
-              if (!s.moodleToken) {
+              if (!s.moodleConnected) {
                 setOnboardStep('moodle')
               } else {
                 setOnboardStep(null)
@@ -417,14 +437,7 @@ function Home() {
             {message}
           </div>
         )}
-        <MoodleConnectCard
-          settings={settings}
-          onConnect={handleConnect}
-          onSave={async (s) => {
-            await saveSettingsAll(s)
-            if (s.moodleToken) setOnboardStep(null) // トークン直接登録でも通常画面へ抜ける
-          }}
-        />
+        <MoodleConnectCard settings={settings} onConnect={handleConnect} onRegisterToken={handleRegisterToken} />
         <button
           onClick={() => {
             setOnboardStep(null)
@@ -473,7 +486,7 @@ function Home() {
         </div>
       )}
 
-      {settings.moodleToken &&
+      {settings.moodleConnected &&
         settings.lastSyncedAt &&
         Date.now() - new Date(settings.lastSyncedAt).getTime() > 24 * 3600_000 && (
           <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -645,6 +658,7 @@ function Home() {
           onSave={saveSettingsAll}
           onFlash={flash}
           onConnect={handleConnect}
+          onRegisterToken={handleRegisterToken}
           tasks={tasks}
           slots={slots}
           onToggle={toggleDone}
@@ -989,10 +1003,10 @@ function AllTab(props: {
 function MoodleConnectCard(props: {
   settings: Settings
   onConnect: (moodleUrl: string, username: string, password: string) => Promise<void>
-  onSave: (s: Settings) => void
+  onRegisterToken: (moodleUrl: string, token: string) => Promise<void>
 }) {
-  const { settings, onConnect, onSave } = props
-  const connected = Boolean(settings.moodleToken)
+  const { settings, onConnect, onRegisterToken } = props
+  const connected = Boolean(settings.moodleConnected)
   const [showForm, setShowForm] = useState(!connected)
   const [univ, setUniv] = useState(UNIVERSITIES[0].url)
   const [customUrl, setCustomUrl] = useState('')
@@ -1117,18 +1131,24 @@ function MoodleConnectCard(props: {
                 className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
               />
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (!token.trim()) return
-                  const moodleUrl = univ === 'custom' ? customUrl.trim() : univ
-                  onSave({
-                    ...settings,
-                    moodleUrl: moodleUrl || settings.moodleUrl,
-                    moodleToken: token.trim(),
-                  })
-                  setToken('')
-                  setShowForm(false)
+                  const moodleUrl = (univ === 'custom' ? customUrl.trim() : univ) || settings.moodleUrl
+                  setBusy(true)
+                  setMessage('')
+                  try {
+                    // サーバーがMoodleに問い合わせて使えることを確かめ、暗号化して保存する
+                    await onRegisterToken(moodleUrl, token.trim())
+                    setToken('')
+                    setShowForm(false)
+                  } catch (e) {
+                    setMessage(e instanceof Error ? e.message : '登録に失敗しました')
+                  } finally {
+                    setBusy(false)
+                  }
                 }}
-                className="rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary"
+                disabled={busy}
+                className="rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary disabled:opacity-50"
               >
                 登録
               </button>
@@ -1410,11 +1430,12 @@ function SettingsTab(props: {
   onSave: (s: Settings) => void
   onFlash: (text: string) => void
   onConnect: (moodleUrl: string, username: string, password: string) => Promise<void>
+  onRegisterToken: (moodleUrl: string, token: string) => Promise<void>
   tasks: Task[]
   slots: TimetableSlot[]
   onToggle: (id: string) => void
 }) {
-  const { settings, onSave, onFlash, onConnect, tasks, slots, onToggle } = props
+  const { settings, onSave, onFlash, onConnect, onRegisterToken, tasks, slots, onToggle } = props
   const [minutes, setMinutes] = useState(settings.minutesPerDay)
   const [notifyTime, setNotifyTime] = useState(settings.notifyTime)
   const [enabling, setEnabling] = useState(false)
@@ -1454,7 +1475,8 @@ function SettingsTab(props: {
   const handleDeleteAccount = async () => {
     if (
       !window.confirm(
-        'アカウントを削除すると、課題データ・設定・通知の登録がすべて完全に消去されます。この操作は取り消せません。削除しますか?',
+        'アカウントを削除すると、課題データ・設定・通知の登録がすべて完全に消去されます。この操作は取り消せません。\n\n' +
+          'Moodle側の合鍵は有効なまま残ります。削除のあと、Moodleの「セキュリティキー」でリセットしてください。\n\n削除しますか?',
       )
     )
       return
@@ -1535,7 +1557,9 @@ function SettingsTab(props: {
         <span className="text-gray-300">›</span>
       </button>
 
-      {!isDemo() && <MoodleConnectCard settings={settings} onConnect={onConnect} onSave={onSave} />}
+      {!isDemo() && (
+        <MoodleConnectCard settings={settings} onConnect={onConnect} onRegisterToken={onRegisterToken} />
+      )}
 
       <CalendarFeedCard settings={settings} onSaveSettings={onSave} onFlash={onFlash} />
 
@@ -1672,6 +1696,25 @@ function SettingsTab(props: {
                 >
                   ログアウト
                 </button>
+                {/* 退会しても、Moodle側の合鍵は有効なまま残る(UniPortからは取り消せない)。
+                    本人がMoodleの「セキュリティキー」でリセットすれば、その場で使えなくなる */}
+                {settings.moodleConnected && (
+                  <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs leading-5 text-gray-600">
+                    アカウントを削除すると、UniPortに保存していたMoodleの合鍵も消えます。ただし
+                    <b>Moodle側では合鍵が有効なまま</b>残るので、削除のあとにMoodleの「セキュリティキー」で
+                    「Moodle mobile web service」の鍵をリセットしてください
+                    (スマホのMoodle公式アプリは、ログインし直しになることがあります)。
+                    <a
+                      href={`${settings.moodleUrl}/user/managetoken.php`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 flex items-center gap-1 font-medium text-primary underline"
+                    >
+                      Moodleのセキュリティキーを開く
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
                 <button
                   onClick={handleDeleteAccount}
                   disabled={deleting}

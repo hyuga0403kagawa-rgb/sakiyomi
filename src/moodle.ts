@@ -27,6 +27,18 @@ export async function connectMoodle(
   if (data?.error) throw new Error(data.error)
 }
 
+/**
+ * 上級者向け: Moodleのトークンを直接登録する。サーバー(moodle-connect)が
+ * 使えることを確かめてから暗号化して保存する。アプリ側には保存しない。
+ */
+export async function registerMoodleToken(moodleUrl: string, token: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('moodle-connect', {
+    body: { moodleUrl, token },
+  })
+  if (error) throw new Error('連携サーバーへの接続に失敗しました')
+  if (data?.error) throw new Error(data.error)
+}
+
 export async function syncMoodleViaServer(): Promise<SyncResult> {
   const { data, error } = await supabase.functions.invoke('moodle-sync', { body: {} })
   if (error) throw new Error('同期サーバーへの接続に失敗しました')
