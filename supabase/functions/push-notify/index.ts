@@ -38,7 +38,11 @@ interface JobEntryLite {
   done: boolean
 }
 
-/** 就活の予定(説明会・締切など)の前日18時・当日8時にまたいだものを通知する */
+/**
+ * 就活の予定(説明会・締切など)を、課題と同じく3回知らせる:
+ * 3日前18時・前日18時・当日8時(いずれもJST)。
+ * アプリの「今日やること」も同じく3日以内の予定を出している(src/jobDeadlines.ts)。
+ */
 function buildJobReminderLines(entries: JobEntryLite[], nowMs: number): string[] {
   const lines: string[] = []
   for (const e of entries) {
@@ -48,8 +52,10 @@ function buildJobReminderLines(entries: JobEntryLite[], nowMs: number): string[]
     if (Number.isNaN(midnightJst)) continue
     const sameDay = midnightJst + 8 * HOUR // 当日 8:00 JST
     const dayBefore = midnightJst - 6 * HOUR // 前日 18:00 JST
+    const threeDaysBefore = midnightJst - 54 * HOUR // 3日前 18:00 JST
     if (crossed(sameDay, nowMs)) lines.push(`🔔 今日: ${e.company}(${e.entry_type})`)
     else if (crossed(dayBefore, nowMs)) lines.push(`📌 明日: ${e.company}(${e.entry_type})`)
+    else if (crossed(threeDaysBefore, nowMs)) lines.push(`📅 3日後: ${e.company}(${e.entry_type})`)
   }
   return lines
 }

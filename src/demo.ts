@@ -267,6 +267,15 @@ function seed(): DemoStore {
         status: '気になる',
       },
       {
+        // 「今日やること」の就活の予定(3日以内)に出る見本
+        id: 'd-j4',
+        company: 'サンプル工業株式会社',
+        entryType: 'エントリーシート提出',
+        deadline: day(2),
+        done: false,
+        status: '気になる',
+      },
+      {
         id: 'd-j3',
         company: '株式会社サンプル情報',
         entryType: '夏季インターン',

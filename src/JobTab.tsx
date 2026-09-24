@@ -100,9 +100,11 @@ export default function JobTab(props: { onFlash: (text: string) => void }) {
   }
 
   const toggleEntry = async (e: JobEntry) => {
-    setEntries((es) => es.map((x) => (x.id === e.id ? { ...x, done: !x.done } : x)))
+    // 新しい値は先に確定させる(デモではデータの実体を共有しているため。App.tsx の toggleJobDone と同じ)
+    const next = !e.done
+    setEntries((es) => es.map((x) => (x.id === e.id ? { ...x, done: next } : x)))
     try {
-      await repo.updateJobEntryDone(e.id, !e.done)
+      await repo.updateJobEntryDone(e.id, next)
     } catch {
       onFlash('更新に失敗しました')
     }

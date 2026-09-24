@@ -23,7 +23,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
-import type { Company, Settings, Task, TimetableSlot } from './types'
+import type { Company, JobEntry, Settings, Task, TimetableSlot } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
 import { isDemo } from './demo'
@@ -52,6 +52,7 @@ import {
   pickTodaysSponsor,
 } from './sponsor'
 import { UNIVERSITIES } from './universities'
+import { JOB_LOOKAHEAD_DAYS, fmtJobDate, jobCountdown, upcomingJobEntries } from './jobDeadlines'
 
 // calendar は下タブには出さないサブ画面(「すべて」の📅から開く)
 // 講義資料は時間割→講義詳細に統合済み(旧・資料タブは就活タブに置き換え)
@@ -271,6 +272,29 @@ function Home() {
     [tasks, settings.minutesPerDay],
   )
   const recommendation = useMemo(() => buildRecommendation(tasks, plan), [tasks, plan])
+
+  // 就活の予定。「今日」タブを開くたびに取り直す(就活タブで追加・完了した分を反映するため)
+  const [jobEntries, setJobEntries] = useState<JobEntry[]>([])
+  useEffect(() => {
+    if (tab !== 'today') return
+    repo.fetchJobEntries().then(setJobEntries).catch(() => {})
+  }, [tab])
+  const upcomingJobs = useMemo(() => upcomingJobEntries(jobEntries), [jobEntries])
+
+  const toggleJobDone = async (id: string) => {
+    const e = jobEntries.find((x) => x.id === id)
+    if (!e) return
+    // 新しい値は先に確定させる。デモではデータの実体を共有しているため、
+    // 保存処理が先に e.done を書き換えると、更新関数の中で !x.done が逆向きになる
+    const next = !e.done
+    setJobEntries((es) => es.map((x) => (x.id === id ? { ...x, done: next } : x)))
+    try {
+      await repo.updateJobEntryDone(id, next)
+    } catch {
+      setJobEntries((es) => es.map((x) => (x.id === id ? { ...x, done: !next } : x)))
+      flash('クラウドへの保存に失敗しました')
+    }
+  }
 
   const toggleDone = async (id: string) => {
     const t = tasks.find((x) => x.id === id)
@@ -544,6 +568,40 @@ function Home() {
                 />
               ))}
             </ul>
+          )}
+
+          {/* 就活の予定(期限が今日〜3日後のもの)。課題と同じく締切を落とさせないため */}
+          {upcomingJobs.length > 0 && (
+            <>
+              <h3 className="mt-5 flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+                <Briefcase className="h-4 w-4 text-gray-400" />
+                就活の予定({JOB_LOOKAHEAD_DAYS}日以内)
+              </h3>
+              <ul className="mt-2 space-y-2">
+                {upcomingJobs.map((e) => {
+                  const cd = jobCountdown(e.deadline!)
+                  return (
+                    <li key={e.id} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                      <input
+                        type="checkbox"
+                        checked={e.done}
+                        onChange={() => toggleJobDone(e.id)}
+                        aria-label={`${e.company} ${e.entryType} を完了にする`}
+                        className="mt-1 h-5 w-5 accent-primary"
+                      />
+                      <button onClick={() => setTab('job')} className="min-w-0 flex-1 text-left">
+                        <p className="truncate text-xs text-gray-500">{e.entryType}</p>
+                        <span className="block truncate font-medium text-gray-900">{e.company}</span>
+                        <p className="mt-0.5 flex items-center gap-x-2 text-xs">
+                          <span className={cd.color}>{fmtJobDate(e.deadline!)}</span>
+                          <span className={`font-medium ${cd.color}`}>{cd.label}</span>
+                        </p>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
           )}
         </main>
       )}
