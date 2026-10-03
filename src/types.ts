@@ -110,6 +110,42 @@ export const JOB_STATUSES = [
   { key: 'お見送り', color: 'bg-red-50 text-red-600' },
 ] as const
 
+/** テスト対策: 重み(軽い・普通・重い) */
+export type ExamWeight = 'light' | 'normal' | 'heavy'
+/** テスト対策: 毎日の割り振りの型(直前ほど多く・毎日均等・前半から多め) */
+export type ExamPattern = 'late' | 'even' | 'early'
+
+/** テスト対策のやることリストの1項目 */
+export interface ExamTodo {
+  id: string
+  text: string
+  done: boolean
+}
+
+/** 期末・中間などのテスト。仕様は docs/テスト対策_仕様.md */
+export interface Exam {
+  id: string
+  course?: string
+  title: string
+  /** テストの日 (YYYY-MM-DD) */
+  examDate: string
+  /** 日付が仮(まだ決まっていない)か */
+  tentative: boolean
+  weight: ExamWeight
+  /** 勉強を始める日 (YYYY-MM-DD) */
+  startDate: string
+  /** 合計の勉強時間(分) */
+  totalMinutes: number
+  pattern: ExamPattern
+  /** 自分で直した日: { 'YYYY-MM-DD': 分 }。0 は休み */
+  overrides: Record<string, number>
+  /** やった記録: { 'YYYY-MM-DD': 分 } */
+  doneLog: Record<string, number>
+  todos: ExamTodo[]
+  /** 仮の日付の「日程は決まりましたか?」を聞いたか */
+  tentativeAsked: boolean
+}
+
 /** 就活: 自己分析・ガクチカなどのメモ */
 export interface JobNote {
   id: string

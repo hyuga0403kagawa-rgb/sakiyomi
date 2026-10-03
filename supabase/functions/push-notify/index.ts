@@ -43,6 +43,32 @@ interface JobEntryLite {
  * 3日前18時・前日18時・当日8時(いずれもJST)。
  * アプリの「今日やること」も同じく3日以内の予定を出している(src/jobDeadlines.ts)。
  */
+interface ExamLite {
+  course: string | null
+  title: string
+  exam_date: string
+  start_date: string
+}
+
+/**
+ * テストの通知(仕様 docs/テスト対策_仕様.md): 勉強を始める日の8時と、テスト前日の18時(JST)。
+ * 遅れの通知はうるさくなるので出さない。
+ */
+function buildExamReminderLines(exams: ExamLite[], nowMs: number): string[] {
+  const lines: string[] = []
+  for (const e of exams) {
+    const name = `${e.course ? `${e.course} ` : ''}${e.title}`
+    const examMidnight = Date.parse(`${e.exam_date}T00:00:00+09:00`)
+    const startMidnight = Date.parse(`${e.start_date}T00:00:00+09:00`)
+    if (!Number.isNaN(examMidnight) && crossed(examMidnight - 6 * HOUR, nowMs)) {
+      lines.push(`📌 明日は${name}です`)
+    } else if (!Number.isNaN(startMidnight) && startMidnight < examMidnight && crossed(startMidnight + 8 * HOUR, nowMs)) {
+      lines.push(`📖 今日から${name}の勉強が始まります`)
+    }
+  }
+  return lines
+}
+
 function buildJobReminderLines(entries: JobEntryLite[], nowMs: number): string[] {
   const lines: string[] = []
   for (const e of entries) {
@@ -173,6 +199,22 @@ Deno.serve(async (req) => {
       })
     }
 
+    // --- 1.6 テスト(勉強を始める日の朝・前日の夕方) ---
+    // exams 表がまだ無い環境でもエラーで止めない(data が null なら0件として扱う)
+    const { data: examRows } = await admin
+      .from('exams')
+      .select('course, title, exam_date, start_date')
+      .eq('user_id', s.user_id)
+    const examLines = buildExamReminderLines((examRows ?? []) as ExamLite[], nowMs)
+    let examReminded = 0
+    if (examLines.length > 0) {
+      examReminded = await sendToSubs(admin, subs, {
+        title: '📝 テスト',
+        body: examLines.slice(0, 5).join('\n'),
+        url: './',
+      })
+    }
+
     // --- 2. 毎日のまとめ(notify_time以降・1日1回) ---
     let summarized = 0
     // notify_time は time 型だと "18:00:00" で返るため、"HH:MM" に切り詰めてから
@@ -210,6 +252,7 @@ Deno.serve(async (req) => {
       reminderLines: lines.length,
       jobReminded,
       jobReminderLines: jobLines.length,
+      examReminded,
       summarized,
     })
   }

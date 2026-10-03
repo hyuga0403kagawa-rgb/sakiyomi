@@ -156,6 +156,29 @@ async function buildFeed(
     }
   }
 
+  // --- 1.5 自分で登録したテスト(期末・中間。終日・過去30日〜) ---
+  // exams 表がまだ無い環境では data が null になり、何も足さない
+  if (opts.exams) {
+    const since = new Date(jst.getTime() - 30 * 24 * HOUR).toISOString().slice(0, 10)
+    const { data: exams } = await admin
+      .from('exams')
+      .select('id, course, title, exam_date, tentative')
+      .eq('user_id', userId)
+      .gte('exam_date', since)
+    // deno-lint-ignore no-explicit-any
+    for (const e of exams ?? []) {
+      const d = String(e.exam_date) // YYYY-MM-DD
+      const next = new Date(Date.parse(`${d}T00:00:00Z`) + 24 * HOUR).toISOString().slice(0, 10)
+      events.push({
+        uid: `exam-${e.id}`,
+        summary: `📝 ${e.course ? `${e.course} ` : ''}${e.title}${e.tentative ? '(仮)' : ''}`,
+        start: d.replaceAll('-', ''),
+        end: next.replaceAll('-', ''),
+        allDay: true,
+      })
+    }
+  }
+
   // --- 2. 現在の学期の時間割(毎週繰り返し) ---
   if (opts.timetable) {
     const semester = currentSemester ?? defaultSemester(jst)

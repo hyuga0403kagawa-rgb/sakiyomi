@@ -4,6 +4,10 @@ import type {
   AttendanceStatus,
   Company,
   CourseInfo,
+  Exam,
+  ExamPattern,
+  ExamTodo,
+  ExamWeight,
   Grade,
   JobEntry,
   JobNote,
@@ -275,6 +279,103 @@ export async function deleteAttendance(id: string): Promise<void> {
     return
   }
   const { error } = await supabase.from('attendance_records').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- テスト対策 ----------
+
+interface ExamRow {
+  id: string
+  course: string | null
+  title: string
+  exam_date: string
+  tentative: boolean
+  weight: ExamWeight
+  start_date: string
+  total_minutes: number
+  pattern: ExamPattern
+  overrides: Record<string, number> | null
+  done_log: Record<string, number> | null
+  todos: ExamTodo[] | null
+  tentative_asked: boolean
+}
+
+function toExam(r: ExamRow): Exam {
+  return {
+    id: r.id,
+    course: r.course ?? undefined,
+    title: r.title,
+    examDate: r.exam_date,
+    tentative: r.tentative,
+    weight: r.weight,
+    startDate: r.start_date,
+    totalMinutes: r.total_minutes,
+    pattern: r.pattern,
+    overrides: r.overrides ?? {},
+    doneLog: r.done_log ?? {},
+    todos: r.todos ?? [],
+    tentativeAsked: r.tentative_asked,
+  }
+}
+
+function toExamRow(e: Omit<Exam, 'id'>): Omit<ExamRow, 'id'> {
+  return {
+    course: e.course ?? null,
+    title: e.title,
+    exam_date: e.examDate,
+    tentative: e.tentative,
+    weight: e.weight,
+    start_date: e.startDate,
+    total_minutes: e.totalMinutes,
+    pattern: e.pattern,
+    overrides: e.overrides,
+    done_log: e.doneLog,
+    todos: e.todos,
+    tentative_asked: e.tentativeAsked,
+  }
+}
+
+/** デモでは実体を共有しないよう複製して返す(状態の更新で反転が打ち消される問題を避ける) */
+function cloneExam(e: Exam): Exam {
+  return { ...e, overrides: { ...e.overrides }, doneLog: { ...e.doneLog }, todos: e.todos.map((t) => ({ ...t })) }
+}
+
+export async function fetchExams(): Promise<Exam[]> {
+  if (isDemo()) return demoStore().exams.map(cloneExam)
+  const { data, error } = await supabase.from('exams').select('*')
+  if (error) throw error
+  return (data as ExamRow[]).map(toExam)
+}
+
+export async function insertExam(e: Omit<Exam, 'id'>): Promise<Exam> {
+  if (isDemo()) {
+    const created: Exam = { ...cloneExam({ ...e, id: '' }), id: demoId() }
+    demoStore().exams.push(cloneExam(created))
+    return created
+  }
+  const { data, error } = await supabase.from('exams').insert(toExamRow(e)).select().single()
+  if (error) throw error
+  return toExam(data as ExamRow)
+}
+
+export async function updateExam(e: Exam): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.exams = s.exams.map((x) => (x.id === e.id ? cloneExam(e) : x))
+    return
+  }
+  const { id, ...rest } = e
+  const { error } = await supabase.from('exams').update(toExamRow(rest)).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteExam(id: string): Promise<void> {
+  if (isDemo()) {
+    const s = demoStore()
+    s.exams = s.exams.filter((x) => x.id !== id)
+    return
+  }
+  const { error } = await supabase.from('exams').delete().eq('id', id)
   if (error) throw error
 }
 

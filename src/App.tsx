@@ -14,6 +14,7 @@ import {
   Crown,
   ExternalLink,
   FileText,
+  GraduationCap,
   Home as HomeIcon,
   ListTodo,
   Mail,
@@ -24,7 +25,7 @@ import {
   Utensils,
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
-import type { Company, JobEntry, Settings, Task, TimetableSlot } from './types'
+import type { Company, Exam, JobEntry, Settings, Task, TimetableSlot } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
 import { isDemo } from './demo'
@@ -35,10 +36,10 @@ import {
   loadTasks as loadLocalTasks,
 } from './storage'
 import { connectMoodle, registerMoodleToken, syncMoodleViaServer } from './moodle'
-import { buildTodayPlan } from './planner'
+import { buildTodayPlanWithReserve } from './planner'
 import { buildRecommendation } from './recommend'
 import { defaultSemester } from './semester'
-import { WEEKDAY_JA, fmtMinutes, fmtTime } from './format'
+import { WEEKDAY_JA, dayKey, fmtMinutes, fmtTime } from './format'
 import AuthScreen from './AuthScreen'
 import TaskRow from './TaskRow'
 import CalendarTab from './CalendarTab'
@@ -48,6 +49,7 @@ import ProfileForm from './ProfileForm'
 import AvatarIcon from './AvatarIcon'
 import WidgetPreview from './WidgetPreview'
 import GradesScreen from './GradesScreen'
+import ExamScreen from './ExamScreen'
 import SponsorSplash from './SponsorSplash'
 import {
   consumeFromPushFlag,
@@ -58,10 +60,12 @@ import {
 } from './sponsor'
 import { UNIVERSITIES } from './universities'
 import { JOB_LOOKAHEAD_DAYS, fmtJobDate, jobCountdown, upcomingJobEntries } from './jobDeadlines'
+import { WEIGHT_DEFAULTS, examCountdown, nextTodo, shouldAskTentative, todayExamMinutes, upcomingExams } from './examPlan'
 
 // calendar は下タブには出さないサブ画面(「すべて」の📅から開く)
 // 講義資料は時間割→講義詳細に統合済み(旧・資料タブは就活タブに置き換え)
-type Tab = 'today' | 'timetable' | 'all' | 'calendar' | 'job' | 'settings'
+// exams も下タブには出さないサブ画面(今日タブのテストの欄から開く)
+type Tab = 'today' | 'timetable' | 'all' | 'calendar' | 'job' | 'settings' | 'exams'
 type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 
 // 香川大学生向けのポータルリンク
@@ -280,9 +284,30 @@ function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // テスト対策。今日タブを開くたびに取り直す。仕様は docs/テスト対策_仕様.md
+  const [exams, setExams] = useState<Exam[]>([])
+  const [examOpen, setExamOpen] = useState<string | null>(null)
+  useEffect(() => {
+    if (tab !== 'today') return
+    repo.fetchExams().then(setExams).catch(() => {})
+  }, [tab])
+  const todayKey = dayKey(new Date())
+  const nextExams = useMemo(() => upcomingExams(exams, todayKey), [exams, todayKey])
+  const askTentative = nextExams.find((e) => shouldAskTentative(e, todayKey))
+
+  // 今日の試験勉強に使いたい時間の合計(チェック済みのテストは除く)
+  const examWanted = useMemo(
+    () =>
+      nextExams.reduce(
+        (a, e) => a + (e.doneLog[todayKey] != null ? 0 : todayExamMinutes(e, todayKey)),
+        0,
+      ),
+    [nextExams, todayKey],
+  )
+  // 締切に間に合う範囲で、試験勉強の時間を先に取っておく(planner.ts)
   const plan = useMemo(
-    () => buildTodayPlan(tasks, settings.minutesPerDay),
-    [tasks, settings.minutesPerDay],
+    () => buildTodayPlanWithReserve(tasks, settings.minutesPerDay, examWanted).plan,
+    [tasks, settings.minutesPerDay, examWanted],
   )
   const recommendation = useMemo(() => buildRecommendation(tasks, plan), [tasks, plan])
 
@@ -307,6 +332,47 @@ function Home() {
       setJobEntries((es) => es.map((x) => (x.id === id ? { ...x, done: !next } : x)))
       flash('クラウドへの保存に失敗しました')
     }
+  }
+
+
+  // 今日の試験勉強。課題に使った残りの時間(上で取っておいた分を含む)に、テストが近い順に入れる。
+  // 締切のために入りきらなかった分は記録されず、残りの日に配り直される(合計は守る)
+  const examPlan = useMemo(() => {
+    let free = Math.max(0, settings.minutesPerDay - plan.totalMinutes)
+    return nextExams.flatMap((exam) => {
+      const done = exam.doneLog[todayKey]
+      if (done != null) return [{ exam, minutes: done, wanted: done, done: true }]
+      const wanted = todayExamMinutes(exam, todayKey)
+      if (wanted <= 0) return []
+      const minutes = Math.min(wanted, free)
+      free -= minutes
+      return [{ exam, minutes, wanted, done: false }]
+    })
+  }, [nextExams, todayKey, settings.minutesPerDay, plan.totalMinutes])
+  const examMinutesToday = examPlan.filter((x) => !x.done).reduce((a, x) => a + x.minutes, 0)
+
+  const saveExam = async (next: Exam) => {
+    const prev = exams
+    setExams((es) => es.map((x) => (x.id === next.id ? next : x)))
+    try {
+      await repo.updateExam(next)
+    } catch {
+      setExams(prev)
+      flash('クラウドへの保存に失敗しました')
+    }
+  }
+
+  // チェックを入れると、その日に割り当てた分を「やった」として記録する
+  const toggleExamToday = (exam: Exam, minutes: number) => {
+    const doneLog = { ...exam.doneLog }
+    if (doneLog[todayKey] != null) delete doneLog[todayKey]
+    else doneLog[todayKey] = minutes
+    void saveExam({ ...exam, doneLog })
+  }
+
+  const openExams = (id: string | null) => {
+    setExamOpen(id)
+    setTab('exams')
   }
 
   const toggleDone = async (id: string) => {
@@ -546,6 +612,66 @@ function Home() {
             </a>
           )}
 
+          {/* テストのカウントダウン(近い2件)。なければ登録への1行だけ */}
+          {nextExams.length > 0 ? (
+            <button
+              onClick={() => openExams(null)}
+              className="mt-3 w-full rounded-lg border border-gray-200 bg-white p-3 text-left"
+            >
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                <GraduationCap className="h-3.5 w-3.5" />
+                テスト
+              </p>
+              {nextExams.slice(0, 2).map((e) => (
+                <p key={e.id} className="mt-1 flex items-baseline gap-2 text-sm text-gray-800">
+                  <span className="min-w-0 flex-1 truncate">
+                    {e.course ? `${e.course} ` : ''}
+                    {e.title}まで
+                  </span>
+                  <span className="shrink-0 font-semibold text-primary">{examCountdown(e, todayKey)}</span>
+                  <span className="shrink-0 text-xs text-gray-400">
+                    ({WEIGHT_DEFAULTS[e.weight].label}
+                    {e.tentative ? '・仮' : ''})
+                  </span>
+                </p>
+              ))}
+            </button>
+          ) : (
+            <button
+              onClick={() => openExams('new')}
+              className="mt-2 flex w-full items-center gap-1.5 px-1 text-left text-xs text-gray-500"
+            >
+              <GraduationCap className="h-3.5 w-3.5 text-gray-400" />
+              <span className="flex-1">テストの日程を登録して、勉強の計画を立てる</span>
+              <span className="text-gray-300">›</span>
+            </button>
+          )}
+
+          {/* 日付が仮のテストが1週間以内に近づいたら、1回だけ聞く */}
+          {askTentative && (
+            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              {askTentative.course} {askTentative.title}の日程は決まりましたか?(いまは仮で
+              {Number(askTentative.examDate.slice(5, 7))}/{Number(askTentative.examDate.slice(8))})
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => {
+                    void saveExam({ ...askTentative, tentativeAsked: true })
+                    openExams(askTentative.id)
+                  }}
+                  className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-white"
+                >
+                  決まった・直す
+                </button>
+                <button
+                  onClick={() => void saveExam({ ...askTentative, tentativeAsked: true })}
+                  className="rounded-lg border border-amber-300 px-3 py-1 text-xs"
+                >
+                  まだ
+                </button>
+              </div>
+            </div>
+          )}
+
           {(() => {
             // 今日の授業(day: 0=月〜5=土, 7=日)。現在の学期のコマのみ表示
             const jsDay = today.getDay()
@@ -577,10 +703,10 @@ function Home() {
             {today.getMonth() + 1}月{today.getDate()}日({WEEKDAY_JA[today.getDay()]}) 今日やること
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            合計 {fmtMinutes(plan.totalMinutes)} / 上限 {fmtMinutes(settings.minutesPerDay)}
+            合計 {fmtMinutes(plan.totalMinutes + examMinutesToday)} / 上限 {fmtMinutes(settings.minutesPerDay)}
           </p>
 
-          {plan.items.length === 0 ? (
+          {plan.items.length === 0 && examPlan.length === 0 ? (
             <div className="mt-10 flex flex-col items-center text-center text-gray-500">
               <CheckCircle2 className="h-10 w-10 text-amber-400" />
               <p className="mt-2 text-sm">今日やる分はありません</p>
@@ -596,6 +722,46 @@ function Home() {
                   onToggle={toggleDone}
                 />
               ))}
+            </ul>
+          )}
+
+          {/* 試験勉強(課題で使った残りの時間に入れる) */}
+          {examPlan.length > 0 && (
+            <ul className="mt-2 space-y-2">
+              {examPlan.map(({ exam, minutes, wanted, done }) => {
+                const todo = nextTodo(exam)
+                const cd = examCountdown(exam, todayKey)
+                return (
+                  <li key={exam.id} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                    <input
+                      type="checkbox"
+                      checked={done}
+                      disabled={!done && minutes === 0}
+                      onChange={() => toggleExamToday(exam, minutes)}
+                      aria-label={`${exam.course ?? ''} ${exam.title}の勉強を完了にする`}
+                      className="mt-1 h-5 w-5 accent-primary"
+                    />
+                    <button onClick={() => openExams(exam.id)} className="min-w-0 flex-1 text-left">
+                      <p className="truncate text-xs text-gray-500">
+                        {exam.course ?? 'テスト'} ・ {exam.title}まで{cd}
+                      </p>
+                      <span className="block truncate font-medium text-gray-900">
+                        試験勉強{todo ? ` — 次: ${todo}` : ''}
+                      </span>
+                      {!done && minutes < wanted && (
+                        <p className="text-xs text-red-600">
+                          {minutes === 0
+                            ? '締切の近い課題で今日は埋まっています。勉強が遅れています(残りの日に回します)'
+                            : `締切の近い課題を優先して${fmtMinutes(minutes)}にしました。勉強が遅れています`}
+                        </p>
+                      )}
+                    </button>
+                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-xs font-medium tabular-nums text-gray-600">
+                      {fmtMinutes(minutes)}
+                    </span>
+                  </li>
+                )
+              })}
             </ul>
           )}
 
@@ -664,6 +830,17 @@ function Home() {
 
       {tab === 'calendar' && (
         <CalendarTab tasks={tasks} onToggle={toggleDone} onBack={() => setTab('all')} />
+      )}
+
+      {tab === 'exams' && (
+        <ExamScreen
+          exams={exams}
+          onChange={setExams}
+          initialOpen={examOpen}
+          onBack={() => setTab('today')}
+          onFlash={flash}
+          courseSuggestions={[...new Set(slots.map((s) => s.course))].sort((a, b) => a.localeCompare(b, 'ja'))}
+        />
       )}
 
       {tab === 'job' && <JobTab onFlash={flash} />}
@@ -1208,7 +1385,7 @@ function CollapsibleSection(props: {
 /** カレンダーに含める種類の切り替え定義 */
 const CALENDAR_KINDS = [
   { key: 'calendarTasks', label: '課題の締め切り', hint: 'レポート・提出物の期限' },
-  { key: 'calendarExams', label: 'テストの日程', hint: 'Moodleの小テスト・試験' },
+  { key: 'calendarExams', label: 'テストの日程', hint: 'Moodleの小テストと、自分で登録したテスト' },
   { key: 'calendarTimetable', label: '時間割', hint: '毎週の授業(教室つき)' },
   { key: 'calendarJobs', label: '就活の予定', hint: '説明会・選考など' },
 ] as const satisfies readonly { key: keyof Settings; label: string; hint: string }[]

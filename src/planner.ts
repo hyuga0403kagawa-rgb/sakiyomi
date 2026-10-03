@@ -98,3 +98,25 @@ export function buildTodayPlan(tasks: Task[], minutesPerDay: number): TodayPlan 
     overloaded,
   }
 }
+
+/**
+ * 試験勉強の時間を先に取っておいたうえでの「今日やること」(2026-10-03 社長判断 A)。
+ *
+ * 課題の前倒し分より試験勉強を先にする。ただし締切を落とさないことが最優先なので、
+ * 取っておくと課題が締切に間に合わなくなる(overloaded になる)ときは、間に合うところまで減らす。
+ * もともと上限いっぱいでも間に合わない日は、試験勉強の分は取らない。
+ * 1日の上限を減らして計算するので、明日以降も同じだけ勉強に使う前提の、少し慎重な見積もり。
+ */
+export function buildTodayPlanWithReserve(
+  tasks: Task[],
+  minutesPerDay: number,
+  reserve: number,
+): { plan: TodayPlan; reserved: number } {
+  const base = buildTodayPlan(tasks, minutesPerDay)
+  if (reserve <= 0 || base.overloaded) return { plan: base, reserved: 0 }
+  for (let r = Math.min(reserve, minutesPerDay); r > 0; r -= 5) {
+    const plan = buildTodayPlan(tasks, minutesPerDay - r)
+    if (!plan.overloaded) return { plan, reserved: r }
+  }
+  return { plan: base, reserved: 0 }
+}

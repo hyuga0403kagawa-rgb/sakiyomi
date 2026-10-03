@@ -10,6 +10,7 @@
 import type {
   AttendanceRecord,
   CourseInfo,
+  Exam,
   Grade,
   JobEntry,
   JobNote,
@@ -75,6 +76,7 @@ export interface DemoStore {
   jobEntries: JobEntry[]
   jobNotes: JobNote[]
   jobProfile: JobProfile | null
+  exams: Exam[]
 }
 
 const SEM = defaultSemester()
@@ -238,6 +240,44 @@ function seed(): DemoStore {
       { id: 'd-a3', course: '電気回路学', date: day(-1), status: 'present' },
       { id: 'd-a4', course: '線形代数II', date: day(-10), status: 'present' },
       { id: 'd-a5', course: '線形代数II', date: day(-3), status: 'absent' },
+    ],
+    exams: [
+      {
+        // 今日タブのカウントダウンと「今日やること」の試験勉強に出る見本(重い・始まっている)
+        id: 'd-e1',
+        course: '電気回路学',
+        title: '期末試験',
+        examDate: day(18),
+        tentative: false,
+        weight: 'heavy',
+        startDate: day(-12),
+        totalMinutes: 20 * 60,
+        pattern: 'late',
+        overrides: { [day(3)]: 0 },
+        doneLog: { [day(-12)]: 25, [day(-11)]: 25, [day(-10)]: 25, [day(-8)]: 25, [day(-7)]: 25, [day(-5)]: 25, [day(-4)]: 25, [day(-2)]: 25, [day(-1)]: 25 },
+        todos: [
+          { id: 'd-t1', text: 'ノート見直し 第1〜5回', done: true },
+          { id: 'd-t2', text: '過去問2年分', done: false },
+          { id: 'd-t3', text: '小テスト解き直し', done: false },
+        ],
+        tentativeAsked: false,
+      },
+      {
+        // 日付が仮のテストの見本
+        id: 'd-e2',
+        course: '線形代数II',
+        title: '期末試験',
+        examDate: day(40),
+        tentative: true,
+        weight: 'heavy',
+        startDate: day(10),
+        totalMinutes: 20 * 60,
+        pattern: 'late',
+        overrides: {},
+        doneLog: {},
+        todos: [],
+        tentativeAsked: false,
+      },
     ],
     grades: [
       { id: 'd-g1', course: '微分積分I', term: '2025 1学期', grade: '優', credits: 2 },
