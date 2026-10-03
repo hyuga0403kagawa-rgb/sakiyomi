@@ -21,6 +21,7 @@ import {
   Settings as SettingsIcon,
   Smartphone,
   Sparkles,
+  Utensils,
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import type { Company, JobEntry, Settings, Task, TimetableSlot } from './types'
@@ -66,6 +67,8 @@ type TaskDraft = Omit<Task, 'id' | 'createdAt'>
 // 香川大学生向けのポータルリンク
 const ICOMPASS_URL = 'https://attendsyst.kagawa-u.ac.jp/mobile/g/'
 const KADASAPO_URL = 'https://kyoumusyst.kagawa-u.ac.jp/campusweb/top.do'
+// 生協の営業時間一覧(全キャンパス・その日の時間)。中身の取り込みはmaruco利用規約4条(無断転載禁止)があるのでリンクのみ
+const COOP_HOURS_URL = 'https://vsign.jp/kagawa/maruco/shops'
 
 /** 香川大生かどうか。moodleUrl はデフォルト値が香川大なので、香川Moodleに
  *  連携済み、またはプロフィールの大学が香川、で判定する */
@@ -527,6 +530,19 @@ function Home() {
                 <span className="block text-xs text-gray-400">出席の登録・確認(香川大学)</span>
               </span>
               <ExternalLink className="h-4 w-4 text-gray-300" />
+            </a>
+          )}
+
+          {isKagawaStudent(settings) && (
+            <a
+              href={COOP_HOURS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 flex items-center gap-1.5 px-1 text-xs text-gray-500"
+            >
+              <Utensils className="h-3.5 w-3.5 text-gray-400" />
+              <span className="flex-1">食堂の営業時間(生協)</span>
+              <ExternalLink className="h-3.5 w-3.5 text-gray-300" />
             </a>
           )}
 
