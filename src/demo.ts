@@ -45,6 +45,30 @@ function detect(): boolean {
 
 const DEMO = detect()
 
+// 紹介ページ(about.html)から開いたデモは、本物のアプリへの出口(「デモを終了する」)を出さない。
+// 紹介ページからはまだアプリを入手させない方針のため(2026-10-04 社長決定)。
+const FROM_LP_KEY = 'uniport-demo-from-lp'
+
+function detectFromLp(): boolean {
+  if (!DEMO || typeof window === 'undefined') return false
+  const p = new URLSearchParams(window.location.search)
+  const fromLp = p.get('from') === 'lp'
+  try {
+    if (fromLp) sessionStorage.setItem(FROM_LP_KEY, '1')
+    else if (p.get('demo') === '1') sessionStorage.removeItem(FROM_LP_KEY)
+    return sessionStorage.getItem(FROM_LP_KEY) === '1'
+  } catch {
+    return fromLp
+  }
+}
+
+const DEMO_FROM_LP = detectFromLp()
+
+/** 紹介ページから開いたデモか */
+export function isDemoFromLp(): boolean {
+  return DEMO_FROM_LP
+}
+
 /** デモモードで動いているか */
 export function isDemo(): boolean {
   return DEMO

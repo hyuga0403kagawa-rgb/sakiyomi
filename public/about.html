@@ -225,14 +225,14 @@ h2{font-size:var(--text-2xl);font-weight:900;line-height:1.4;margin:0 0 var(--sp
         <p class="lead rise" style="--i:0">香川大学の学生向けのアプリです。大学のMoodleとつないで課題と締切を自動で取り込み、その日にやる分を教えます。</p>
         <p class="by rise" style="--i:1">開発:菅原 彪雅(香川大学 創造工学部)· 2026年9月時点で、香川大学の学生10人ほどが使っています</p>
         <div class="actions rise" style="--i:2">
-          <a class="btn btn-primary" href="./?demo=1" target="_blank" rel="noopener">デモを触ってみる<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+          <a class="btn btn-primary" href="./?demo=1&amp;from=lp" target="_blank" rel="noopener">デモを触ってみる<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
           <a class="btn btn-ghost" href="#features">できることを見る</a>
         </div>
       </section>
 
       <div class="stage-mobile" aria-label="デモの案内">
         <p>ログインなしで、サンプルデータの入った実物のアプリを触れます。入力しても実際のデータには残りません。</p>
-        <a class="btn btn-primary" href="./?demo=1" target="_blank" rel="noopener">デモを開く<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+        <a class="btn btn-primary" href="./?demo=1&amp;from=lp" target="_blank" rel="noopener">デモを開く<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
       </div>
 
       <section class="sec" aria-labelledby="h-why" data-reveal>
@@ -331,7 +331,6 @@ h2{font-size:var(--text-2xl);font-weight:900;line-height:1.4;margin:0 0 var(--sp
 
   <footer class="foot">
     <span>© 2026 UniPort · 菅原 彪雅</span>
-    <a href="./?demo=0">アプリを開く(学生の方)</a>
     <a href="privacy.html">プライバシーポリシー</a>
     <a href="terms.html">利用規約</a>
   </footer>
@@ -378,7 +377,7 @@ h2{font-size:var(--text-2xl);font-weight:900;line-height:1.4;margin:0 0 var(--sp
   function mount(){
     if (frame || !wide.matches) return;
     frame = document.createElement('iframe');
-    frame.src = './?demo=1';
+    frame.src = './?demo=1&from=lp';
     frame.title = 'UniPortのデモ画面';
     frame.addEventListener('load', function(){ screen.classList.add('is-ready'); });
     screen.appendChild(frame);

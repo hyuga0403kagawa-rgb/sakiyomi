@@ -28,7 +28,7 @@ import type { Session } from '@supabase/supabase-js'
 import type { Company, Exam, JobEntry, Settings, Task, TimetableSlot } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
-import { isDemo } from './demo'
+import { isDemo, isDemoFromLp } from './demo'
 import * as repo from './repo'
 import {
   forgetLegacyMoodleToken,
@@ -1874,12 +1874,14 @@ function SettingsTab(props: {
                   デモモードのため、ログアウトとアカウント削除は使えません。
                   本番では、ここからアカウントと全データをその場で削除できます。
                 </p>
-                <a
-                  href="./?demo=0"
-                  className="block w-full rounded-lg border border-gray-300 py-2 text-center text-sm text-gray-500"
-                >
-                  デモを終了する
-                </a>
+                {!isDemoFromLp() && (
+                  <a
+                    href="./?demo=0"
+                    className="block w-full rounded-lg border border-gray-300 py-2 text-center text-sm text-gray-500"
+                  >
+                    デモを終了する
+                  </a>
+                )}
               </>
             ) : (
               <>
