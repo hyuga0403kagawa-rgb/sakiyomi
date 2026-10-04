@@ -22,11 +22,16 @@ export const PATTERN_LABELS: Record<ExamPattern, string> = {
   early: '前半から多め',
 }
 
-/** 前半(最初の1/2)・中盤(次の1/4)・直前(最後の1/4)に配る割合 */
-const PATTERN_SHARES: Record<ExamPattern, [number, number, number]> = {
-  late: [0.3, 0.3, 0.4],
-  even: [0.5, 0.25, 0.25], // 使わない(均等は patternWeights で日数割り)
-  early: [0.4, 0.3, 0.3],
+/**
+ * 前半(最初の1/2)・中盤(次の1/4)・直前(最後の1/4)の、1日あたりの濃さ。
+ * 期間ごとの割合(例 30/30/40%)で決めると、日数の少ない期間の1日あたりが大きくなり、
+ * 直前より中盤が多くなる・前半から多めの前半が少なくなる、と逆転したため、1日あたりで決める(2026-10-04)。
+ * 「直前ほど多く」の 1:2:3 は、重い・20時間・1か月で 約25/50/70分 になる(仕様の例と同じ見え方)
+ */
+const PATTERN_INTENSITY: Record<ExamPattern, [number, number, number]> = {
+  late: [1, 2, 3],
+  even: [1, 1, 1],
+  early: [2, 1.5, 1],
 }
 
 /** 1日の勉強時間の刻み(分) */
@@ -66,15 +71,12 @@ export function studyDays(exam: Pick<Exam, 'startDate' | 'examDate'>): string[] 
 /** 型に沿った、日ごとの比率(合計1) */
 function patternWeights(n: number, pattern: ExamPattern): number[] {
   if (n === 0) return []
-  if (pattern === 'even') return Array.from({ length: n }, () => 1 / n)
   const phaseOf = (i: number) => {
     const pos = (i + 0.5) / n
     return pos < 0.5 ? 0 : pos < 0.75 ? 1 : 2
   }
-  const counts = [0, 0, 0]
-  for (let i = 0; i < n; i++) counts[phaseOf(i)]++
-  const shares = PATTERN_SHARES[pattern]
-  const raw = Array.from({ length: n }, (_, i) => shares[phaseOf(i)] / counts[phaseOf(i)])
+  const intensity = PATTERN_INTENSITY[pattern]
+  const raw = Array.from({ length: n }, (_, i) => intensity[phaseOf(i)])
   const sum = raw.reduce((a, b) => a + b, 0)
   return raw.map((w) => w / sum)
 }

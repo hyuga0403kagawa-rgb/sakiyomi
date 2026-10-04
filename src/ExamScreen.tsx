@@ -276,7 +276,8 @@ function ExamEditor(props: {
   }
 
   const label = 'text-sm font-medium text-gray-700'
-  const input = 'mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm'
+  // iPhoneの日付入力は中身の幅より縮まず枠からはみ出すため、min-w-0・appearance-none・bg-white を付ける
+  const input = 'mt-1 block w-full min-w-0 appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm'
   const chip = (on: boolean) =>
     `rounded-lg border px-2 py-1.5 text-xs ${on ? 'border-primary bg-primary-soft font-semibold text-primary-dark' : 'border-gray-200 text-gray-600'}`
 
@@ -356,7 +357,7 @@ function ExamEditor(props: {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <label className="block">
+          <label className="block min-w-0">
             <span className={label}>始める日</span>
             <input
               type="date"
@@ -366,7 +367,7 @@ function ExamEditor(props: {
               className={input}
             />
           </label>
-          <label className="block">
+          <label className="block min-w-0">
             <span className={label}>合計(時間)</span>
             <input
               type="number"
