@@ -25,7 +25,7 @@ import {
   Utensils,
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
-import type { Company, Exam, JobEntry, Settings, Task, TimetableSlot } from './types'
+import type { Company, CourseMeta, Exam, JobEntry, Settings, Task, TimetableSlot } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './supabase'
 import { isDemo, isDemoFromLp } from './demo'
@@ -290,6 +290,12 @@ function Home() {
   useEffect(() => {
     if (tab !== 'today') return
     repo.fetchExams().then(setExams).catch(() => {})
+  }, [tab])
+  // 今日の授業に出す略称(時間割の「コマを編集」で付けたもの)。今日タブを開くたびに取り直す
+  const [courseMeta, setCourseMeta] = useState<Record<string, CourseMeta>>({})
+  useEffect(() => {
+    if (tab !== 'today') return
+    repo.fetchCourseMeta().then(setCourseMeta).catch(() => {})
   }, [tab])
   const todayKey = dayKey(new Date())
   const nextExams = useMemo(() => upcomingExams(exams, todayKey), [exams, todayKey])
@@ -690,7 +696,7 @@ function Home() {
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
                   {todayClasses.map((s) => (
                     <span key={s.id} className="text-sm text-gray-800">
-                      <span className="font-medium text-primary">{s.period}限</span> {s.course}
+                      <span className="font-medium text-primary">{s.period}限</span> {courseMeta[s.course]?.shortName || s.course}
                       {s.room && <span className="text-xs text-gray-400"> @{s.room}</span>}
                     </span>
                   ))}

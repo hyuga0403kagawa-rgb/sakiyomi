@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Monitor, X } from 'lucide-react'
-import type { Settings, Task, TimetableDays, TimetableSlot } from './types'
+import type { CourseMeta, Settings, Task, TimetableDays, TimetableSlot } from './types'
 import * as repo from './repo'
 import { fetchCourses } from './materials'
 import { SEMESTER_TERMS, defaultSemester, parseSemester, yearOptions } from './semester'
@@ -137,15 +137,27 @@ export default function TimetableTab(props: {
   })()
   const [editMode, setEditMode] = useState(false)
   const [showSemesterModal, setShowSemesterModal] = useState(false)
-  const [adding, setAdding] = useState<{ day: number; period: number } | null>(null)
+  // コマの追加・編集画面。slot があれば既存のコマの編集
+  const [adding, setAdding] = useState<{ day: number; period: number; slot?: TimetableSlot } | null>(null)
   const [course, setCourse] = useState('')
   const [room, setRoom] = useState('')
+  // 講義ごとの項目(course_info に保存。同じ講義の全コマで共通)
+  const [shortName, setShortName] = useState('')
+  const [teacher, setTeacher] = useState('')
+  const [saving, setSaving] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<string | null>(initialCourse ?? null)
-  // 講義ごとの色(course_info.color)。{ 講義名: 色キー }
-  const [courseColors, setCourseColors] = useState<Record<string, string>>({})
+  // 講義ごとの色・略称・教員名(course_info)。{ 講義名: … }
+  const [courseMeta, setCourseMeta] = useState<Record<string, CourseMeta>>({})
+  const courseColors = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const [k, v] of Object.entries(courseMeta)) if (v.color) m[k] = v.color
+    return m
+  }, [courseMeta])
+  /** 時間割に出す名前(略称があれば略称) */
+  const labelOf = (c: string) => courseMeta[c]?.shortName || c
 
   useEffect(() => {
-    repo.fetchCourseColors().then(setCourseColors).catch(() => {})
+    repo.fetchCourseMeta().then(setCourseMeta).catch(() => {})
   }, [])
 
   // 「時間割」タブが押されたら追加画面・講義詳細を閉じてグリッドに戻す(初回=undefinedは無視)
@@ -221,30 +233,35 @@ export default function TimetableTab(props: {
     [tasks],
   )
 
+  /** 追加・編集画面を開く。既存のコマなら今の値を入れておく */
+  const openForm = (day: number, period: number, slot?: TimetableSlot) => {
+    setAdding({ day, period, slot })
+    setCourse(slot?.course ?? '')
+    setRoom(slot?.room ?? '')
+    setShortName(slot ? courseMeta[slot.course]?.shortName ?? '' : '')
+    setTeacher(slot ? courseMeta[slot.course]?.teacher ?? '' : '')
+  }
+
+  /** 講義を選び直したら、その講義に保存済みの略称・教員名を入れ直す(講義ごとの項目のため) */
+  const pickCourse = (c: string) => {
+    setCourse(c)
+    setShortName(courseMeta[c]?.shortName ?? '')
+    setTeacher(courseMeta[c]?.teacher ?? '')
+  }
+
   const handleCellTap = (day: number, period: number) => {
     const slot = slotAt(day, period)
     if (editMode) {
-      if (slot && window.confirm(`「${slot.course}」を時間割から外しますか?`)) {
-        onSlotsChange(slots.filter((s) => s.id !== slot.id))
-        repo.deleteTimetableSlot(slot.id).catch(() => onFlash('削除に失敗しました'))
-      }
+      if (slot) openForm(day, period, slot)
       return
     }
-    if (slot) {
-      setSelectedCourse(slot.course)
-    } else {
-      setAdding({ day, period })
-      setCourse('')
-      setRoom('')
-    }
+    if (slot) setSelectedCourse(slot.course)
+    else openForm(day, period)
   }
 
   const handleOnDemandTap = (slot: TimetableSlot) => {
     if (editMode) {
-      if (window.confirm(`「${slot.course}」をオンデマンドから外しますか?`)) {
-        onSlotsChange(slots.filter((s) => s.id !== slot.id))
-        repo.deleteTimetableSlot(slot.id).catch(() => onFlash('削除に失敗しました'))
-      }
+      openForm(slot.day, slot.period, slot)
       return
     }
     setSelectedCourse(slot.course)
@@ -254,31 +271,47 @@ export default function TimetableTab(props: {
     const nextPeriod = onDemandSlots.length
       ? Math.max(...onDemandSlots.map((s) => s.period)) + 1
       : 1
-    setAdding({ day: ON_DEMAND_DAY, period: nextPeriod })
-    setCourse('')
-    setRoom('')
+    openForm(ON_DEMAND_DAY, nextPeriod)
   }
 
-  const addSlot = async () => {
-    if (!adding || !course.trim()) return
+  const saveSlot = async () => {
+    const name = course.trim()
+    if (!adding || !name || saving) return
+    setSaving(true)
     try {
-      const created = await repo.addTimetableSlot(
-        adding.day,
-        adding.period,
-        course.trim(),
-        semester,
-        room.trim() || undefined,
-      )
+      const created = await repo.addTimetableSlot(adding.day, adding.period, name, semester, room.trim() || undefined)
       onSlotsChange([
         ...slots.filter(
           (s) => !(s.day === created.day && s.period === created.period && s.semester === created.semester),
         ),
         created,
       ])
+      // 略称・教員名は講義ごと。変わったときだけ、講義情報(メモ・評価割合など)を残したまま書き足す
+      const prev = courseMeta[name] ?? {}
+      const nextShort = shortName.trim() === name ? '' : shortName.trim()
+      if ((prev.shortName ?? '') !== nextShort || (prev.teacher ?? '') !== teacher.trim()) {
+        const info = (await repo.fetchCourseInfo(name)) ?? { course: name }
+        await repo.upsertCourseInfo({ ...info, course: name, shortName: nextShort, teacher: teacher.trim() })
+        setCourseMeta((m) => ({
+          ...m,
+          [name]: { ...m[name], shortName: nextShort || undefined, teacher: teacher.trim() || undefined },
+        }))
+      }
       setAdding(null)
+      if (adding.slot) onFlash('保存しました')
     } catch {
-      onFlash('登録に失敗しました')
+      onFlash(adding.slot ? '保存に失敗しました' : '登録に失敗しました')
+    } finally {
+      setSaving(false)
     }
+  }
+
+  const removeSlot = (slot: TimetableSlot) => {
+    const where = slot.day === ON_DEMAND_DAY ? 'オンデマンド' : '時間割'
+    if (!window.confirm(`「${labelOf(slot.course)}」を${where}から外しますか?`)) return
+    onSlotsChange(slots.filter((s) => s.id !== slot.id))
+    repo.deleteTimetableSlot(slot.id).catch(() => onFlash('削除に失敗しました'))
+    setAdding(null)
   }
 
   if (selectedCourse) {
@@ -291,7 +324,7 @@ export default function TimetableTab(props: {
         onFlash={onFlash}
         color={courseColors[selectedCourse]}
         onColorChange={(c) =>
-          setCourseColors((m) => ({ ...m, [selectedCourse]: c }))
+          setCourseMeta((m) => ({ ...m, [selectedCourse]: { ...m[selectedCourse], color: c } }))
         }
       />
     )
@@ -312,23 +345,26 @@ export default function TimetableTab(props: {
         </button>
         <h2 className="mt-3 text-base font-semibold text-gray-800">
           {adding.day === ON_DEMAND_DAY
-            ? 'オンデマンドに授業を追加'
-            : `${DAY_LABEL[adding.day]}曜 ${adding.period}限に授業を追加`}
+            ? adding.slot
+              ? 'オンデマンドの授業を編集'
+              : 'オンデマンドに授業を追加'
+            : `${DAY_LABEL[adding.day]}曜 ${adding.period}限${adding.slot ? 'の授業を編集' : 'に授業を追加'}`}
         </h2>
 
         <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+          <span className="text-xs font-medium text-gray-600">講義(Moodleとつなぐ名前)</span>
           <input
             value={course}
             onChange={(e) => setCourse(e.target.value)}
             placeholder="講義名(Moodleと同じ名前推奨)"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
           />
           {(suggestions.length > 0 || excludedMatches.length > 0) && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {suggestions.map((c) => (
                 <button
                   key={c}
-                  onClick={() => setCourse(c)}
+                  onClick={() => pickCourse(c)}
                   className="rounded-full bg-primary-soft px-2.5 py-1 text-xs text-primary-dark"
                 >
                   {c}
@@ -337,7 +373,7 @@ export default function TimetableTab(props: {
               {excludedMatches.map((c) => (
                 <button
                   key={c}
-                  onClick={() => setCourse(c)}
+                  onClick={() => pickCourse(c)}
                   className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500"
                   title="Moodle上で終了済み/非表示になっている講義です"
                 >
@@ -356,21 +392,58 @@ export default function TimetableTab(props: {
                 : `終了済み・非表示の講義も表示(${hiddenCourses.length}件)`}
             </button>
           )}
-          <input
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-            placeholder={adding.day === ON_DEMAND_DAY ? '配信サイト等のメモ(任意)' : '教室(任意)'}
-            className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          />
           <p className="mt-1 text-[11px] text-gray-400">
             候補から選ぶと、課題や資料が自動でこの講義に紐づきます
           </p>
+
+          <label className="mt-3 block">
+            <span className="text-xs font-medium text-gray-600">
+              {adding.day === ON_DEMAND_DAY ? 'メモ(配信サイトなど)' : '教室'}
+            </span>
+            <input
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+              placeholder={adding.day === ON_DEMAND_DAY ? '任意' : '例: 4103(任意)'}
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="mt-3 block">
+            <span className="text-xs font-medium text-gray-600">教員名</span>
+            <input
+              value={teacher}
+              onChange={(e) => setTeacher(e.target.value)}
+              placeholder="任意"
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="mt-3 block">
+            <span className="text-xs font-medium text-gray-600">時間割に出す名前(略称)</span>
+            <input
+              value={shortName}
+              onChange={(e) => setShortName(e.target.value)}
+              placeholder="空なら講義名のまま"
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <p className="mt-1 text-[11px] text-gray-400">
+            教員名と略称は講義ごとです(同じ講義のほかのコマにも出ます)。略称にしても課題・資料のつながりは変わりません
+          </p>
+
           <button
-            onClick={addSlot}
-            className="mt-3 w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-white"
+            onClick={saveSlot}
+            disabled={saving || !course.trim()}
+            className="mt-4 w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           >
-            追加
+            {saving ? '保存中…' : adding.slot ? '保存' : '追加'}
           </button>
+          {adding.slot && (
+            <button
+              onClick={() => removeSlot(adding.slot!)}
+              className="mt-2 w-full rounded-lg border border-red-200 py-2 text-sm text-red-600"
+            >
+              このコマを時間割から外す
+            </button>
+          )}
         </div>
       </main>
     )
@@ -407,14 +480,14 @@ export default function TimetableTab(props: {
         <button
           onClick={() => setEditMode(!editMode)}
           className={`rounded-lg px-3 py-1 text-xs ${
-            editMode ? 'bg-red-50 font-semibold text-red-600' : 'text-primary underline'
+            editMode ? 'bg-primary-soft font-semibold text-primary-dark' : 'text-primary underline'
           }`}
         >
-          {editMode ? '編集を終了' : 'コマを削除'}
+          {editMode ? '編集を終了' : 'コマを編集'}
         </button>
       </div>
       {editMode && (
-        <p className="mt-1 px-1 text-xs text-red-500">削除したいコマをタップしてください</p>
+        <p className="mt-1 px-1 text-xs text-primary">編集したいコマをタップしてください(外すのも編集画面から)</p>
       )}
 
       {showSemesterModal && (
@@ -471,7 +544,7 @@ export default function TimetableTab(props: {
                     className={`relative flex min-h-16 flex-col rounded-lg p-1 text-left transition ${
                       slot
                         ? editMode
-                          ? 'border border-red-200 bg-red-50'
+                          ? 'border-2 border-dashed border-primary/60 bg-primary-soft'
                           : c!.cell
                         : 'border border-dashed border-gray-200 bg-white'
                     }`}
@@ -482,7 +555,7 @@ export default function TimetableTab(props: {
                           <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
                         )}
                         <span className={`block flex-1 break-all text-[10px] font-medium leading-tight ${c!.text}`}>
-                          {slot.course.length > 16 ? slot.course.slice(0, 16) + '…' : slot.course}
+                          {labelOf(slot.course).length > 16 ? labelOf(slot.course).slice(0, 16) + '…' : labelOf(slot.course)}
                         </span>
                         <span
                           className={`mt-0.5 self-start rounded bg-white/70 px-1 py-px text-[8px] ${
@@ -513,13 +586,13 @@ export default function TimetableTab(props: {
                 key={slot.id}
                 onClick={() => handleOnDemandTap(slot)}
                 className={`relative rounded-lg px-2.5 py-1.5 text-left text-xs ${
-                  editMode ? 'border border-red-200 bg-red-50 text-red-700' : `${c.cell} ${c.text}`
+                  editMode ? 'border-2 border-dashed border-primary/60 bg-primary-soft text-primary-dark' : `${c.cell} ${c.text}`
                 }`}
               >
                 {pendingCourses.has(slot.course) && (
                   <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
                 )}
-                {slot.course}
+                {labelOf(slot.course)}
                 {slot.room && <span className="ml-1 text-[10px] opacity-70">({slot.room})</span>}
               </button>
             )
@@ -536,7 +609,7 @@ export default function TimetableTab(props: {
       <p className="mt-2 px-1 text-[11px] text-gray-400">
         右上の「学期切替」で年度・学期ごとの時間割を切り替えられます(今の学期は自動で選ばれます)。
         空きコマの「+」で講義を登録、オンデマンドは下の欄から。講義をタップすると課題・資料・出席・
-        成績見込みが見られ、色も変えられます。赤い点は未提出の課題がある講義です。
+        成績見込みが見られ、色も変えられます。教室・教員名・略称は「コマを編集」から。赤い点は未提出の課題がある講義です。
       </p>
 
     </main>

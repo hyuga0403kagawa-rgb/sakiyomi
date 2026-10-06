@@ -78,6 +78,17 @@ export interface CourseInfo {
   notes?: string
   /** 時間割での表示色(courseColors.ts の色キー) */
   color?: string
+  /** 教員名(講義ごとに1つ) */
+  teacher?: string
+  /** 時間割に出す略称。course は Moodle とつながる名前なので変えず、見せる名前だけ変える */
+  shortName?: string
+}
+
+/** 時間割の表示に使う、講義ごとの情報 */
+export interface CourseMeta {
+  color?: string
+  teacher?: string
+  shortName?: string
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late'

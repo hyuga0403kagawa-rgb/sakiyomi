@@ -4,6 +4,7 @@ import type {
   AttendanceStatus,
   Company,
   CourseInfo,
+  CourseMeta,
   Exam,
   ExamPattern,
   ExamTodo,
@@ -185,7 +186,29 @@ export async function fetchCourseInfo(course: string): Promise<CourseInfo | null
     bringIn: data.bring_in ?? undefined,
     notes: data.notes ?? undefined,
     color: data.color ?? undefined,
+    teacher: data.teacher ?? undefined,
+    shortName: data.short_name ?? undefined,
   }
+}
+
+/** 全講義の色・略称・教員名を { 講義名: … } でまとめて取得(時間割・今日タブの表示用) */
+export async function fetchCourseMeta(): Promise<Record<string, CourseMeta>> {
+  if (isDemo()) {
+    const map: Record<string, CourseMeta> = {}
+    for (const c of demoStore().courseInfo) map[c.course] = { color: c.color, teacher: c.teacher, shortName: c.shortName }
+    return map
+  }
+  const { data, error } = await supabase.from('course_info').select('course, color, teacher, short_name')
+  if (error) throw error
+  const map: Record<string, CourseMeta> = {}
+  for (const r of data) {
+    map[r.course] = {
+      color: r.color ?? undefined,
+      teacher: r.teacher ?? undefined,
+      shortName: r.short_name ?? undefined,
+    }
+  }
+  return map
 }
 
 /** 全講義の色を { 講義名: 色キー } でまとめて取得(時間割の色付け用) */
@@ -224,6 +247,10 @@ export async function upsertCourseInfo(info: CourseInfo): Promise<void> {
       bring_in: info.bringIn ?? null,
       notes: info.notes ?? null,
       color: info.color ?? null,
+      // 教員名・略称は、値を持っているときだけ書く(undefined なら列に触らない)。
+      // 講義の詳細画面など、読み込み前のフォームで保存しても消えないようにするため。空にするときは '' を渡す
+      ...(info.teacher !== undefined ? { teacher: info.teacher.trim() || null } : {}),
+      ...(info.shortName !== undefined ? { short_name: info.shortName.trim() || null } : {}),
     },
     { onConflict: 'user_id,course' },
   )

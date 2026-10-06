@@ -237,7 +237,13 @@ export default function CourseDetail(props: {
       <button onClick={onBack} className="text-sm text-primary">
         ← 時間割に戻る
       </button>
-      <h2 className="mt-2 text-lg font-semibold text-gray-800">{course}</h2>
+      <h2 className="mt-2 text-lg font-semibold text-gray-800">{info?.shortName || course}</h2>
+      {(info?.shortName || info?.teacher) && (
+        <p className="mt-0.5 text-xs text-gray-500">
+          {info?.shortName && <span className="mr-2">{course}</span>}
+          {info?.teacher && <span>教員: {info.teacher}</span>}
+        </p>
+      )}
 
       {/* 講義の色 */}
       <div className="mt-3 flex items-center gap-2">
